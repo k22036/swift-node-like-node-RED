@@ -1,27 +1,25 @@
-name: GitHub Actions Demo App
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  unit-tests:
-    name: Run Test On iOS Simulator
-    runs-on: macos-15
-
+  build-and-test:
+    runs-on: macos-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Xcode
-        run: sudo xcode-select --switch /Applications/Xcode_16.4.app
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
 
       - name: Build
-        run: xcodebuild -scheme swift-node-like-node-RED -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+        run: swift build --build-tests
 
-      - name: Run Tests
-        run: xcodebuild -scheme swift-node-like-node-RED -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' test
+      - name: Run tests
+        run: swift test
