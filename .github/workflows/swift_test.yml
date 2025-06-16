@@ -21,7 +21,7 @@ jobs:
         run: sudo xcode-select --switch /Applications/Xcode_16.4.app
 
       - name: Build
-        run: xcodebuild -scheme ArticleSearcher -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+        run: xcodebuild -scheme swift-node-like-node-RED -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
 
       - name: Run Tests
-        run: xcodebuild -scheme ArticleSearcher -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' test
+        run: xcodebuild -scheme swift-node-like-node-RED -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' test
