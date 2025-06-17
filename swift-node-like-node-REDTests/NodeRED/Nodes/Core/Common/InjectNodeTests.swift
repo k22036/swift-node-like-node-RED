@@ -73,6 +73,10 @@ struct InjectNodeTests {
                     print("プロパティ名: \(prop.p), 型: \(prop.vt ?? "未定義")")
                     #expect(prop.p == "payload" || prop.p == "topic")
                 }
+                
+                #expect(firstNode.repeat == 1.0)
+                #expect(firstNode.once == true)
+                #expect(firstNode.onceDelay == 0.5)
             }
         } catch {
             // パースに失敗した場合のエラーハンドリング
