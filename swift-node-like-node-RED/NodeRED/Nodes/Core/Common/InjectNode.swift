@@ -25,7 +25,7 @@ struct InjectNode: Codable, Node {
     let y: Int
     let wires: [[String]]
     
-    init(from decoder: Decoder) throws {
+    init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
         
