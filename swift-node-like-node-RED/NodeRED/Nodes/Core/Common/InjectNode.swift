@@ -28,7 +28,13 @@ struct InjectNode: Codable, Node {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
-        self.type = try container.decode(String.self, forKey: .type)
+        
+        let _type = try container.decode(String.self, forKey: .type)
+        guard _type == "inject" else {
+            throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Expected type to be 'inject', but found \(_type)")
+        }
+        self.type = _type
+        
         self.z = try container.decode(String.self, forKey: .z)
         self.name = try container.decode(String.self, forKey: .name)
         self.props = try container.decode([Props].self, forKey: .props)
@@ -54,9 +60,9 @@ struct InjectNode: Codable, Node {
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
-}
-
-struct Props: Codable {
-    let p: String
-    let vt: String?
+    
+    struct Props: Codable {
+        let p: String
+        let vt: String?
+    }
 }
