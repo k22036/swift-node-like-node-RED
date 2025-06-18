@@ -50,12 +50,12 @@ class DebugNode: Codable, Node {
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
     
-    var isRunning: Bool = false
-    private var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
-    
     enum CodingKeys: String, CodingKey { // Coding keys for decoding
         case id, type, z, name, active, tosidebar, console, tostatus, complete, targetType, statusVal, statusType, x, y, wires
     }
+    
+    var isRunning: Bool = false
+    private var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
     
     deinit {
         isRunning = false
