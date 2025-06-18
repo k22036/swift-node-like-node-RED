@@ -8,7 +8,7 @@
 import Foundation
 
 
-struct InjectNode: Codable, Node {
+class InjectNode: Codable, StartNode {
     let id: String
     let type: String
     let z: String
@@ -25,7 +25,7 @@ struct InjectNode: Codable, Node {
     let y: Int
     let wires: [[String]]
     
-    init(from decoder: any Decoder) throws {
+    required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
         
@@ -59,6 +59,10 @@ struct InjectNode: Codable, Node {
         self.x = try container.decode(Int.self, forKey: .x)
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
+    }
+    
+    func send(msg: NodeMessage) {
+        // TODO: Implement message sending logic
     }
     
     struct Props: Codable {

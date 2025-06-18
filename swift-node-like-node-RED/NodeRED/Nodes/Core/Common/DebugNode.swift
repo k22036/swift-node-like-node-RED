@@ -5,7 +5,7 @@
 //  Created by k22036kk on 2025/06/17.
 //
 
-struct DebugNode: Codable, Node {
+class DebugNode: Codable, EndNode {
     let id: String
     let type: String
     let z: String
@@ -22,7 +22,7 @@ struct DebugNode: Codable, Node {
     let y: Int
     let wires: [[String]]
     
-    init(from decoder: any Decoder) throws {
+    required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
         
@@ -45,5 +45,9 @@ struct DebugNode: Codable, Node {
         self.x = try container.decode(Int.self, forKey: .x)
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
+    }
+    
+    func receive(msg: NodeMessage) {
+        // TODO: Implement message receiving logic
     }
 }
