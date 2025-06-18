@@ -8,19 +8,14 @@
 protocol Node {
     var id: String { get }
     var type: String { get }
+    var wires: [[String]] { get }
     
     init(from decoder: any Decoder) throws
-}
-
-protocol StartNode: Node {
-    func send(msg: NodeMessage)
-}
-
-protocol MiddleNode: Node {
+    
+    func initalize()
+    func execute()
+    func terminate()
+    
     func receive(msg: NodeMessage)
     func send(msg: NodeMessage)
-}
-
-protocol EndNode: Node {
-    func receive(msg: NodeMessage)
 }
