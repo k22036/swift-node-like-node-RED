@@ -12,7 +12,9 @@ protocol Node {
     
     init(from decoder: any Decoder) throws
     
-    func initalize()
+    var flow: Flow? { get } // must weak to avoid retain cycles
+    
+    func initalize(flow: Flow)
     func execute()
     func terminate()
     
