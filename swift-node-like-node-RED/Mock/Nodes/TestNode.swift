@@ -1,0 +1,57 @@
+//
+//  TestNode.swift
+//  swift-node-like-node-RED
+//
+//  Created by k22036kk on 2025/06/19.
+//
+
+//
+//  DebugNode.swift
+//  swift-node-like-node-RED
+//
+//  Created by k22036kk on 2025/06/17.
+//
+
+import Foundation
+import DequeModule
+
+class TestNode: Codable, Node {
+    let id: String
+    let type: String
+    let wires: [[String]]
+    
+    required init(id: String) throws {
+        self.id = id
+        self.type = "test"
+        self.wires = []
+    }
+    
+    enum CodingKeys: String, CodingKey { // Coding keys for decoding
+        case id, type, wires
+    }
+    
+    weak var flow: Flow?
+    var isRunning: Bool = false
+    var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
+    
+    deinit {
+        isRunning = false
+    }
+    
+    func initalize(flow: Flow) {
+        self.flow = flow
+        isRunning = true
+    }
+    
+    func execute() {}
+    
+    func terminate() {
+        isRunning = false
+    }
+    
+    func receive(msg: NodeMessage) {
+        buffer.append(msg)
+    }
+    
+    func send(msg: NodeMessage) {}
+}
