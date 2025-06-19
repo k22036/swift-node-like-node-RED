@@ -96,7 +96,7 @@ struct DebugNodeTests {
             debugNode.receive(msg: msg)
             
             // 0.5秒待機
-            Thread.sleep(forTimeInterval: 0.5)
+            try await Task.sleep(nanoseconds: UInt64(0.5) * 1_000_000_000)
             debugNode.terminate()
             #expect(debugNode.isRunning == false)
         } catch {
