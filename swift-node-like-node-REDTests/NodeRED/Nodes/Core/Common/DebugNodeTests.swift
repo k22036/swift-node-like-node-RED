@@ -33,7 +33,7 @@ struct DebugNodeTests {
         }
     ]
     """
-
+    
     @Test func parse() async throws {
         // JSON文字列をData型に変換
         guard let jsonData = jsonString.data(using: .utf8) else {
@@ -64,10 +64,11 @@ struct DebugNodeTests {
         } catch {
             // パースに失敗した場合のエラーハンドリング
             print("❌ パースに失敗しました: \(error)")
+            throw error
         }
     }
-
-    @Test func printLog() {
+    
+    @Test func printLog() async throws {
         let msg = NodeMessage(payload: "Debug message")
         
         // JSON文字列をData型に変換
@@ -76,30 +77,32 @@ struct DebugNodeTests {
         }
         
         do {
-            let nodes = try JSONDecoder().decode([DebugNode].self, from: jsonData)
+            let debugNode = (try JSONDecoder().decode([DebugNode].self, from: jsonData).first)!
+            
+            let flow = Flow()
+            flow.addNode(debugNode)
             
             // パース結果の確認
-            if let firstNode = nodes.first {
-                print("✅ パースに成功しました！")
-                print("--------------------")
-                print("ノードID: \(firstNode.id)")
-                print("ノードタイプ: \(firstNode.type)")
-                print("ノード名: \(firstNode.name)")
-                
-                #expect(firstNode.isRunning == false)
-                firstNode.initalize()
-                #expect(firstNode.isRunning == true)
-                firstNode.execute()
-                firstNode.receive(msg: msg)
-                
-                // 0.5秒待機
-                Thread.sleep(forTimeInterval: 0.5)
-                firstNode.terminate()
-                #expect(firstNode.isRunning == false)
-            }
+            print("✅ パースに成功しました！")
+            print("--------------------")
+            print("ノードID: \(debugNode.id)")
+            print("ノードタイプ: \(debugNode.type)")
+            print("ノード名: \(debugNode.name)")
+            
+            #expect(debugNode.isRunning == false)
+            debugNode.initalize(flow: flow)
+            #expect(debugNode.isRunning == true)
+            debugNode.execute()
+            debugNode.receive(msg: msg)
+            
+            // 0.5秒待機
+            Thread.sleep(forTimeInterval: 0.5)
+            debugNode.terminate()
+            #expect(debugNode.isRunning == false)
         } catch {
             // パースに失敗した場合のエラーハンドリング
             print("❌ パースに失敗しました: \(error)")
+            throw error
         }
     }
 }

@@ -54,6 +54,7 @@ class DebugNode: Codable, Node {
         case id, type, z, name, active, tosidebar, console, tostatus, complete, targetType, statusVal, statusType, x, y, wires
     }
     
+    weak var flow: Flow?
     var isRunning: Bool = false
     private var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
     
@@ -61,7 +62,8 @@ class DebugNode: Codable, Node {
         isRunning = false
     }
     
-    func initalize() {
+    func initalize(flow: Flow) {
+        self.flow = flow
         isRunning = true
     }
     
@@ -83,6 +85,8 @@ class DebugNode: Codable, Node {
     }
     
     func receive(msg: NodeMessage) {
+        if !isRunning { return }
+        
         buffer.append(msg)
     }
     
