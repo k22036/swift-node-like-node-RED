@@ -56,43 +56,46 @@ class DebugNode: Codable, Node {
     
     weak var flow: Flow?
     var isRunning: Bool = false
-    private var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
-    
+    // AsyncStream continuation for event-driven message delivery
+    private var messageContinuation: AsyncStream<NodeMessage>.Continuation?
+    // AsyncStream for incoming messages
+    private lazy var messageStream: AsyncStream<NodeMessage> = AsyncStream { continuation in
+        self.messageContinuation = continuation
+    }
+
     deinit {
         isRunning = false
     }
-    
+
     func initalize(flow: Flow) {
         self.flow = flow
         isRunning = true
+        // Start event-driven processing
+        execute()
     }
-    
+
     func execute() {
         Task {
-            if !isRunning { return }
-            
-            while isRunning {
-                if let msg = buffer.popFirst() {
-                    // ノードのデバッグメッセージをログに出力
-                    logNodeMessage(msg: msg)
-                }
+            // Process messages as they arrive
+            for await msg in messageStream where isRunning {
+                logNodeMessage(msg: msg)
             }
         }
     }
-    
+
     func terminate() {
         isRunning = false
     }
-    
+
     func receive(msg: NodeMessage) {
-        if !isRunning { return }
-        
-        buffer.append(msg)
+        guard isRunning else { return }
+        // Deliver message to the AsyncStream
+        messageContinuation?.yield(msg)
     }
-    
+
     func send(msg: NodeMessage) {}
-    
-    
+
+
     /// 指定されたフォーマットでノードのデバッグメッセージをコンソールに出力
     /// - Parameters:
     ///   - nodeName: ログを出力するノードの名前 (例: "debug 2")
