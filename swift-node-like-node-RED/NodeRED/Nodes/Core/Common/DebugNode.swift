@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import DequeModule
 
 class DebugNode: Codable, Node {
     let id: String
