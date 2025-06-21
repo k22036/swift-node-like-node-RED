@@ -79,7 +79,7 @@ struct DebugNodeTests {
         do {
             let debugNode = (try JSONDecoder().decode([DebugNode].self, from: jsonData).first)!
             
-            let flow = Flow()
+            let flow = try Flow(flowJson: "[]")
             flow.addNode(debugNode)
             
             // パース結果の確認

@@ -11,3 +11,8 @@ enum NodeRedType: String {
     case string = "str"
     case boolean = "bool"
 }
+
+enum NodeType: String {
+    case inject = "inject"
+    case debug = "debug"
+}

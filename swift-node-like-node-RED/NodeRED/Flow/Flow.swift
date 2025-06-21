@@ -5,17 +5,74 @@
 //  Created by k22036kk on 2025/06/18.
 //
 
+import Foundation
+
 class Flow {
     private var nodes: [String: Node] = [:]
+    
+    struct RawNode: Codable {
+        let type: String
+    }
+    
+    init(flowJson: String) throws {
+        if flowJson.isEmpty {
+            throw NSError(domain: "FlowError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Flow JSON is empty"])
+        }
+        // Convert JSON array string to list of JSON strings
+        guard let data = flowJson.data(using: .utf8) else {
+            throw NSError(domain: "FlowError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid Flow JSON data"])
+        }
+        let jsonArray = try JSONSerialization.jsonObject(with: data, options: []) as? [Any] ?? []
+        let flowJsonStrings = try jsonArray.map { element -> String in
+            let elementData = try JSONSerialization.data(withJSONObject: element, options: [])
+            guard let jsonString = String(data: elementData, encoding: .utf8) else {
+                throw NSError(domain: "FlowError", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to decode JSON element"])
+            }
+            return jsonString
+        }
+        
+        // Parse each JSON string into Node instances
+        for jsonString in flowJsonStrings {
+            let jsonData = jsonString.data(using: .utf8)!
+            let rawNode = try JSONDecoder().decode(RawNode.self, from: jsonData)
+            guard let node = createNode(jsonData: jsonData, type: rawNode.type) else {
+                print("Failed to create node for type: \(rawNode.type)")
+                continue
+            }
+            addNode(node)
+        }
+    }
+    
+    private func createNode(jsonData: Data, type: String) -> Node? {
+        do {
+            switch type {
+            case NodeType.inject.rawValue:
+                return try JSONDecoder().decode(InjectNode.self, from: jsonData)
+            case NodeType.debug.rawValue:
+                return try JSONDecoder().decode(DebugNode.self, from: jsonData)
+            default:
+                // Handle other node types or throw an error
+                print("Unsupported node type: \(type)")
+            }
+        } catch {
+            print("Error decoding node of type \(type): \(error)")
+        }
+        return nil
+    }
+    
     
     func addNode(_ node: Node) {
         nodes[node.id] = node
     }
-      
+    
+    func getNode(by id: String) -> Node? {
+        return nodes[id]
+    }
+    
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
         let outputIndex = 0
         let targetNodeIds = sourceNode.wires[outputIndex]
-          
+        
         for nodeId in targetNodeIds {
             if let targetNode = nodes[nodeId] {
                 // メッセージクローンを作成
@@ -24,7 +81,7 @@ class Flow {
             }
         }
     }
-      
+    
     /// Deep copy implementation for NodeMessage.
     /// Note: This performs a shallow copy for payload and a shallow copy for each property value.
     /// If payload or property values are reference types, changes to their contents may affect the original.

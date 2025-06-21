@@ -161,7 +161,7 @@ struct InjectNodeTests {
             #expect(injectNode.wires.first == ["test-node"])
             print("✅ パースに成功しました！")
             
-            let flow = Flow()
+            let flow = try Flow(flowJson: "[]")
             flow.addNode(injectNode)
             flow.addNode(testNode)
             

@@ -1,19 +1,34 @@
 //
-//  Inject_Debug.swift
+//  Flow.swift
 //  swift-node-like-node-RED
 //
-//  Created by k22036kk on 2025/06/19.
+//  Created by k22036kk on 2025/06/21.
 //
 
 import Testing
 @testable import swift_node_like_node_RED
 import Foundation
 
-struct Inject_Debug_Tests {
-    @Test func execute_inject_debug() async throws {
-        // パース対象のJSON文字列
-        let injectJsonString = """
+struct FlowTests {
+    let flowJson = """
         [
+            {
+                "id": "f0bd46d65aaae42b",
+                "type": "debug",
+                "z": "357cfb731aa85c01",
+                "name": "debug 2",
+                "active": true,
+                "tosidebar": true,
+                "console": false,
+                "tostatus": false,
+                "complete": "payload",
+                "targetType": "msg",
+                "statusVal": "",
+                "statusType": "auto",
+                "x": 480,
+                "y": 180,
+                "wires": []
+            },
             {
                 "id": "22927becb75bd1f3",
                 "type": "inject",
@@ -25,7 +40,8 @@ struct Inject_Debug_Tests {
                     },
                     {
                         "p": "topic",
-                        "vt": "str"
+                        "v": "",
+                        "vt": "num"
                     },
                     {
                         "p": "test1",
@@ -53,77 +69,53 @@ struct Inject_Debug_Tests {
                         "vt": "num"
                     }
                 ],
-                "repeat": "1",
+                "repeat": "",
                 "crontab": "",
-                "once": true,
-                "onceDelay": 0.1,
+                "once": false,
+                "onceDelay": "1",
                 "topic": "",
-                "payload": "1",
-                "payloadType": "num",
+                "payload": "true",
+                "payloadType": "bool",
                 "x": 210,
                 "y": 180,
                 "wires": [
                     [
                         "f0bd46d65aaae42b",
+                        "4df62d3e39f09ef1"
                     ]
                 ]
-            }
-        ]
-        """
-        let debugJsonString = """
-        [
+            },
             {
-                "id": "f0bd46d65aaae42b",
+                "id": "4df62d3e39f09ef1",
                 "type": "debug",
                 "z": "357cfb731aa85c01",
-                "name": "debug 2",
+                "name": "debug 3",
                 "active": true,
                 "tosidebar": true,
                 "console": false,
                 "tostatus": false,
-                "complete": "payload",
+                "complete": "test4",
                 "targetType": "msg",
                 "statusVal": "",
                 "statusType": "auto",
                 "x": 480,
-                "y": 180,
+                "y": 240,
                 "wires": []
             }
         ]
         """
-        
-        // JSON文字列をData型に変換
-        guard let injectJsonData = injectJsonString.data(using: .utf8) else {
-            fatalError("inject: JSON文字列をDataに変換できませんでした。")
-        }
-        guard let debugJsonData = debugJsonString.data(using: .utf8) else {
-            fatalError("debug: JSON文字列をDataに変換できませんでした。")
-        }
-        
+    @Test func init_flow() async throws {
         do {
-            let injectNode = (try JSONDecoder().decode([InjectNode].self, from: injectJsonData).first)!
-            let debugNode = (try JSONDecoder().decode([DebugNode].self, from: debugJsonData).first)!
+            let flow = try Flow(flowJson: flowJson)
+            print("✅ フローの初期化に成功しました！")
             
-            #expect(injectNode.wires.first == ["f0bd46d65aaae42b"])
-            print("✅ パースに成功しました！")
+            #expect(flow.getNode(by: "f0bd46d65aaae42b") != nil)
+            #expect(flow.getNode(by: "22927becb75bd1f3") != nil)
+            #expect(flow.getNode(by: "4df62d3e39f09ef1") != nil)
             
-            let flow = try Flow(flowJson: "[]")
-            flow.addNode(injectNode)
-            flow.addNode(debugNode)
-            
-            debugNode.initalize(flow: flow)
-            injectNode.initalize(flow: flow)
-            
-            #expect(debugNode.isRunning == true)
-            #expect(injectNode.isRunning == true)
-            
-            debugNode.execute()
-            injectNode.execute()
-            
-            try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
-            
-            debugNode.terminate()
-            injectNode.terminate()
+            #expect(flow.getNode(by: "f0bd46d65aaae42b") is DebugNode)
+            #expect(flow.getNode(by: "22927becb75bd1f3") is InjectNode)
+            #expect(flow.getNode(by: "4df62d3e39f09ef1") is DebugNode)
         } catch {
             // パースに失敗した場合のエラーハンドリング
             print("❌ パースに失敗しました: \(error)")
