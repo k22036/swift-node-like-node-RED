@@ -107,7 +107,7 @@ class Flow {
     
     func execute() {
         for node in nodes.values {
-            if !isAvailableNode(node: node) {
+            if isAvailableNode(node: node) {
                 node.execute()
             }
         }
