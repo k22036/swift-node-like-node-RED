@@ -111,8 +111,8 @@ struct Inject_Debug_Tests {
             flow.addNode(injectNode)
             flow.addNode(debugNode)
             
-            debugNode.initalize(flow: flow)
-            injectNode.initalize(flow: flow)
+            debugNode.initialize(flow: flow)
+            injectNode.initialize(flow: flow)
             
             #expect(debugNode.isRunning == true)
             #expect(injectNode.isRunning == true)

@@ -90,7 +90,7 @@ struct DebugNodeTests {
             print("ノード名: \(debugNode.name)")
             
             #expect(debugNode.isRunning == false)
-            debugNode.initalize(flow: flow)
+            debugNode.initialize(flow: flow)
             #expect(debugNode.isRunning == true)
             debugNode.execute()
             debugNode.receive(msg: msg)

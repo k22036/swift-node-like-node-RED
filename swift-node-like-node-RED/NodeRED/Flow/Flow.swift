@@ -100,7 +100,7 @@ class Flow {
     func initialize() {
         for node in nodes.values {
             if isAvailableNode(node: node) {
-                node.initalize(flow: self)
+                node.initialize(flow: self)
             }
         }
     }

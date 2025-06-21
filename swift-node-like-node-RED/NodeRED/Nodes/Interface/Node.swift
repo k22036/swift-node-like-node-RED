@@ -16,7 +16,7 @@ protocol Node {
     var flow: Flow? { get } // must weak to avoid retain cycles
     var isRunning: Bool { get }
     
-    func initalize(flow: Flow)
+    func initialize(flow: Flow)
     func execute()
     func terminate()
     

@@ -165,8 +165,8 @@ struct InjectNodeTests {
             flow.addNode(injectNode)
             flow.addNode(testNode)
             
-            testNode.initalize(flow: flow)
-            injectNode.initalize(flow: flow)
+            testNode.initialize(flow: flow)
+            injectNode.initialize(flow: flow)
             
             #expect(injectNode.isRunning == true)
             
