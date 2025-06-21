@@ -14,7 +14,7 @@ class InjectNode: Codable, Node {
     let z: String
     let name: String
     let props: [Props]
-    let `repeat`: Double
+    let `repeat`: Double?
     let crontab: String
     let once: Bool
     let onceDelay: Double
@@ -46,10 +46,13 @@ class InjectNode: Codable, Node {
         self.props = try container.decode([Props].self, forKey: .props)
         
         let _repeat = try container.decode(String.self, forKey: .repeat)
-        guard let repeatValue = Double(_repeat) else {
+        if _repeat.isEmpty {
+            self.repeat = nil
+        } else if let repeatValue = Double(_repeat) {
+            self.repeat = repeatValue
+        } else {
             throw DecodingError.dataCorruptedError(forKey: .repeat, in: container, debugDescription: "Expected a Double value for repeat")
         }
-        self.repeat = repeatValue
         
         self.crontab = try container.decode(String.self, forKey: .crontab)
         self.once = try container.decode(Bool.self, forKey: .once)
@@ -94,13 +97,21 @@ class InjectNode: Codable, Node {
             
             if once {
                 // If the node is set to trigger once, wait for the specified delay before sending the message
-                try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                if onceDelay > 0 {
+                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                }
                 if !isRunning { return }
                 let msg = createMessage()
                 send(msg: msg)
             }
+            
+            guard let repeatValue = `repeat`, repeatValue > 0 else {
+                print("No repeat set or repeat value is zero. Exiting execution.")
+                return // If no repeat is set, exit
+            }
+                
             while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(`repeat` * 1_000_000_000))
+                try await Task.sleep(nanoseconds: UInt64(repeatValue * 1_000_000_000))
                 if !isRunning { return }
                 let msg = createMessage()
                 send(msg: msg)
