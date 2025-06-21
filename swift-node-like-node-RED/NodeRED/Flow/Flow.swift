@@ -69,6 +69,33 @@ class Flow {
         return nodes[id]
     }
     
+    func start() {
+        initialize()
+        execute()
+    }
+    
+    func stop() {
+        terminate()
+    }
+    
+    func initialize() {
+        for node in nodes.values {
+            node.initalize(flow: self)
+        }
+    }
+    
+    func execute() {
+        for node in nodes.values {
+            node.execute()
+        }
+    }
+    
+    func terminate() {
+        for node in nodes.values {
+            node.terminate()
+        }
+    }
+    
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
         let outputIndex = 0
         let targetNodeIds = sourceNode.wires[outputIndex]

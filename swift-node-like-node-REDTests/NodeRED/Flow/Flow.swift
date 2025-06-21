@@ -69,7 +69,7 @@ struct FlowTests {
                         "vt": "num"
                     }
                 ],
-                "repeat": "",
+                "repeat": "0.4",
                 "crontab": "",
                 "once": false,
                 "onceDelay": "1",
@@ -121,5 +121,32 @@ struct FlowTests {
             print("❌ パースに失敗しました: \(error)")
             throw error
         }
+    }
+    
+    @Test func start_flow() async throws {
+        let flow = try Flow(flowJson: flowJson)
+        print("✅ フローの初期化に成功しました！")
+        
+        flow.start()
+        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
+        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
+        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
+    }
+    
+    @Test func stop_flow() async throws {
+        let flow = try Flow(flowJson: flowJson)
+        print("✅ フローの初期化に成功しました！")
+        
+        flow.start()
+        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
+        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
+        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
+        
+        try await Task.sleep(nanoseconds: 2 * 1_000_000_000) // 1秒待機
+        
+        flow.stop()
+        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
+        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
+        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)
     }
 }

@@ -13,6 +13,7 @@ protocol Node {
     init(from decoder: any Decoder) throws
     
     var flow: Flow? { get } // must weak to avoid retain cycles
+    var isRunning: Bool { get }
     
     func initalize(flow: Flow)
     func execute()
