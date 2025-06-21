@@ -1,0 +1,155 @@
+//
+//  Flow.swift
+//  swift-node-like-node-RED
+//
+//  Created by k22036kk on 2025/06/18.
+//
+
+import Foundation
+
+class Flow {
+    private var nodes: [String: Node] = [:]
+    private var tab: [String: Tab] = [:]
+    
+    struct RawNode: Codable {
+        let type: String
+    }
+    
+    init(flowJson: String) throws {
+        if flowJson.isEmpty {
+            throw NSError(domain: "FlowError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Flow JSON is empty"])
+        }
+        // Convert JSON array string to list of JSON strings
+        guard let data = flowJson.data(using: .utf8) else {
+            throw NSError(domain: "FlowError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid Flow JSON data"])
+        }
+        let jsonArray = try JSONSerialization.jsonObject(with: data, options: []) as? [Any] ?? []
+        let flowJsonStrings = try jsonArray.map { element -> String in
+            let elementData = try JSONSerialization.data(withJSONObject: element, options: [])
+            guard let jsonString = String(data: elementData, encoding: .utf8) else {
+                throw NSError(domain: "FlowError", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to decode JSON element"])
+            }
+            return jsonString
+        }
+        
+        // Parse each JSON string into Node instances
+        for jsonString in flowJsonStrings {
+            let jsonData = jsonString.data(using: .utf8)!
+            let rawNode = try JSONDecoder().decode(RawNode.self, from: jsonData)
+            
+            if rawNode.type == FlowType.tab.rawValue {
+                addTab(from: jsonData)
+            } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
+                addNode(node)
+            } else {
+                print("Unsupported node type: \(rawNode.type)")
+                continue
+            }
+        }
+    }
+    
+    
+    private func addTab(from jsonData: Data) {
+        do {
+            let tab = try JSONDecoder().decode(Tab.self, from: jsonData)
+            self.tab[tab.id] = tab
+        } catch {
+            print("Error decoding Tab: \(error)")
+        }
+    }
+    
+    func getTab(by id: String) -> Tab? {
+        return tab[id]
+    }
+    
+    
+    private func createNode(jsonData: Data, type: String) -> Node? {
+        do {
+            switch type {
+            case NodeType.inject.rawValue:
+                return try JSONDecoder().decode(InjectNode.self, from: jsonData)
+            case NodeType.debug.rawValue:
+                return try JSONDecoder().decode(DebugNode.self, from: jsonData)
+            default:
+                // Handle other node types or throw an error
+                print("Unsupported node type: \(type)")
+            }
+        } catch {
+            print("Error decoding node of type \(type): \(error)")
+        }
+        return nil
+    }
+    
+    func addNode(_ node: Node) {
+        nodes[node.id] = node
+    }
+    
+    func getNode(by id: String) -> Node? {
+        return nodes[id]
+    }
+    
+    func start() {
+        initialize()
+        execute()
+    }
+    
+    func stop() {
+        terminate()
+    }
+    
+    func initialize() {
+        for node in nodes.values {
+            if isAvailableNode(node: node) {
+                node.initialize(flow: self)
+            }
+        }
+    }
+    
+    func execute() {
+        for node in nodes.values {
+            if isAvailableNode(node: node) {
+                node.execute()
+            }
+        }
+    }
+    
+    func terminate() {
+        for node in nodes.values {
+            node.terminate()
+        }
+    }
+    
+    func isAvailableNode(node: Node) -> Bool {
+        if let tab = tab[node.z] {
+            if tab.disabled {
+                return false
+            }
+        }
+        return true
+    }
+    
+    
+    func routeMessage(from sourceNode: Node, message: NodeMessage) {
+        let outputIndex = 0
+        let targetNodeIds = sourceNode.wires[outputIndex]
+        
+        for nodeId in targetNodeIds {
+            if let targetNode = nodes[nodeId] {
+                // メッセージクローンを作成
+                let clonedMessage = cloneMessage(message)
+                targetNode.receive(msg: clonedMessage)
+            }
+        }
+    }
+    
+    /// Deep copy implementation for NodeMessage.
+    /// Note: This performs a shallow copy for payload and a shallow copy for each property value.
+    /// If payload or property values are reference types, changes to their contents may affect the original.
+    /// For true deep copy, ensure all properties and payload are value types or implement deep copy themselves.
+    private func cloneMessage(_ msg: NodeMessage) -> NodeMessage {
+        // Deep copyの実装
+        var clonedMsg = NodeMessage(payload: msg.payload)
+        clonedMsg.properties = msg.properties.mapValues { $0 }
+        return clonedMsg
+    }
+}
