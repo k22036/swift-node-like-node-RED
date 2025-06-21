@@ -9,6 +9,7 @@ import Foundation
 
 class Flow {
     private var nodes: [String: Node] = [:]
+    private var tab: [String: Tab] = [:]
     
     struct RawNode: Codable {
         let type: String
@@ -35,13 +36,32 @@ class Flow {
         for jsonString in flowJsonStrings {
             let jsonData = jsonString.data(using: .utf8)!
             let rawNode = try JSONDecoder().decode(RawNode.self, from: jsonData)
-            guard let node = createNode(jsonData: jsonData, type: rawNode.type) else {
-                print("Failed to create node for type: \(rawNode.type)")
+            
+            if rawNode.type == FlowType.tab.rawValue {
+                addTab(from: jsonData)
+            } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
+                addNode(node)
+            } else {
+                print("Unsupported node type: \(rawNode.type)")
                 continue
             }
-            addNode(node)
         }
     }
+    
+    
+    private func addTab(from jsonData: Data) {
+        do {
+            let tab = try JSONDecoder().decode(Tab.self, from: jsonData)
+            self.tab[tab.id] = tab
+        } catch {
+            print("Error decoding Tab: \(error)")
+        }
+    }
+    
+    func getTab(by id: String) -> Tab? {
+        return tab[id]
+    }
+    
     
     private func createNode(jsonData: Data, type: String) -> Node? {
         do {
@@ -59,7 +79,6 @@ class Flow {
         }
         return nil
     }
-    
     
     func addNode(_ node: Node) {
         nodes[node.id] = node
@@ -80,13 +99,17 @@ class Flow {
     
     func initialize() {
         for node in nodes.values {
-            node.initalize(flow: self)
+            if isAvailableNode(node: node) {
+                node.initalize(flow: self)
+            }
         }
     }
     
     func execute() {
         for node in nodes.values {
-            node.execute()
+            if !isAvailableNode(node: node) {
+                node.execute()
+            }
         }
     }
     
@@ -95,6 +118,16 @@ class Flow {
             node.terminate()
         }
     }
+    
+    func isAvailableNode(node: Node) -> Bool {
+        if let tab = tab[node.z] {
+            if tab.disabled {
+                return false
+            }
+        }
+        return true
+    }
+    
     
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
         let outputIndex = 0

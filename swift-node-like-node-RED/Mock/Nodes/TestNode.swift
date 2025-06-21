@@ -18,16 +18,18 @@ import DequeModule
 class TestNode: Codable, Node {
     let id: String
     let type: String
+    let z: String
     let wires: [[String]]
     
     required init(id: String) throws {
         self.id = id
         self.type = "test"
         self.wires = []
+        self.z = "test-z"
     }
     
     enum CodingKeys: String, CodingKey { // Coding keys for decoding
-        case id, type, wires
+        case id, type, z, wires
     }
     
     weak var flow: Flow?

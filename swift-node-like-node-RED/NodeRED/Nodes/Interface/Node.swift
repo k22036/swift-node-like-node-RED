@@ -8,6 +8,7 @@
 protocol Node {
     var id: String { get }
     var type: String { get }
+    var z: String { get }
     var wires: [[String]] { get }
     
     init(from decoder: any Decoder) throws

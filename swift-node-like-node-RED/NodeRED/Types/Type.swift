@@ -16,3 +16,7 @@ enum NodeType: String {
     case inject = "inject"
     case debug = "debug"
 }
+
+enum FlowType: String {
+    case tab = "tab"
+}
