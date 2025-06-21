@@ -36,7 +36,7 @@ class InjectNode: Codable, Node {
         self.id = try container.decode(String.self, forKey: .id)
         
         let _type = try container.decode(String.self, forKey: .type)
-        guard _type == "inject" else {
+        guard _type == NodeType.inject.rawValue else {
             throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Expected type to be 'inject', but found \(_type)")
         }
         self.type = _type

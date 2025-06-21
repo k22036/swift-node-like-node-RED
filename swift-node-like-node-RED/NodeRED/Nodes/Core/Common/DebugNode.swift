@@ -29,7 +29,7 @@ class DebugNode: Codable, Node {
         self.id = try container.decode(String.self, forKey: .id)
         
         let _type = try container.decode(String.self, forKey: .type)
-        guard _type == "debug" else {
+        guard _type == NodeType.debug.rawValue else {
             throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Expected type to be 'debug', but found \(_type)")
         }
         self.type = _type
@@ -100,11 +100,8 @@ class DebugNode: Codable, Node {
     ///   - nodeName: ログを出力するノードの名前 (例: "debug 2")
     ///   - payload: ログに出力する値 (Any型で様々なデータを受け取れます)
     private func logNodeMessage(msg: NodeMessage) {
-        // 1. 現在の日付と時刻を "yyyy/MM/dd HH:mm:ss" 形式の文字列に変換
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX") // 形式を固定するためにロケールを指定
-        dateFormatter.dateFormat = "yyyy/MM/dd HH:mm:ss"
-        let timestamp = dateFormatter.string(from: Date())
+        // 1. 現在の日付と時刻をフォーマット
+        let timestamp = DebugNode.dateFormatter.string(from: Date())
 
         // 2. ペイロードの型を判定して、表示用の文字列を生成
         let payloadType: String
@@ -131,4 +128,12 @@ class DebugNode: Codable, Node {
         print(payloadValue)
         print("----------------------------------------") // ログの区切り線
     }
+    
+    /// Shared DateFormatter for log timestamps
+    private static let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyy/MM/dd HH:mm:ss"
+        return df
+    }()
 }
