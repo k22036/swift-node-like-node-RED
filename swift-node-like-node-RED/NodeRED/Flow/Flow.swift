@@ -96,38 +96,42 @@ class Flow {
     func stop() {
         terminate()
     }
-    
-    func initialize() {
-        for node in nodes.values {
-            if isAvailableNode(node: node) {
-                node.initialize(flow: self)
-            }
+
+    // Extracted helpers for node lifecycle operations
+    /// Applies the given action to all nodes that are available (not on a disabled tab).
+    private func forEachAvailableNode(_ action: (Node) -> Void) {
+        for node in nodes.values where isAvailableNode(node: node) {
+            action(node)
         }
     }
     
-    func execute() {
-        for node in nodes.values {
-            if isAvailableNode(node: node) {
-                node.execute()
-            }
-        }
-    }
-    
-    func terminate() {
-        for node in nodes.values {
-            node.terminate()
-        }
-    }
-    
-    func isAvailableNode(node: Node) -> Bool {
-        if let tab = tab[node.z] {
-            if tab.disabled {
-                return false
-            }
+    /// Determines whether a node should participate based on its tab's disabled state.
+    private func isAvailableNode(node: Node) -> Bool {
+        if let tab = tab[node.z], tab.disabled {
+            return false
         }
         return true
     }
-    
+
+    /// Applies the given action to all nodes regardless of availability.
+    private func forEachNode(_ action: (Node) -> Void) {
+        for node in nodes.values {
+            action(node)
+        }
+    }
+
+    func initialize() {
+        forEachAvailableNode { $0.initialize(flow: self) }
+    }
+
+    func execute() {
+        forEachAvailableNode { $0.execute() }
+    }
+
+    func terminate() {
+        forEachNode { $0.terminate() }
+    }
+
     
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
         let outputIndex = 0
