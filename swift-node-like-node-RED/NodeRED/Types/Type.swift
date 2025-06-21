@@ -15,6 +15,7 @@ enum NodeRedType: String {
 enum NodeType: String {
     case inject = "inject"
     case debug = "debug"
+    case geolocation = "geolocation"
 }
 
 enum FlowType: String {
