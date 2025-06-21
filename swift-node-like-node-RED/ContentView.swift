@@ -6,56 +6,63 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @State private var flowJson: String = ""
+    @State private var flow: Flow?
+    @State private var isRunning: Bool = false
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Flow Configuration:")
+                .font(.headline)
+            TextEditor(text: $flowJson)
+                .font(.system(.body, design: .monospaced))
+                .border(Color.gray)
+                .frame(height: 200)
+            HStack {
+                Button("Deploy") { deployFlow() }
+                    .disabled(flowJson.isEmpty || isRunning)
+                Button("Start") {
+                    flow?.start()
+                    isRunning = true
                 }
-                .onDelete(perform: deleteItems)
+                .disabled(flow == nil || isRunning)
+                Button("Stop") {
+                    flow?.stop()
+                    isRunning = false
+                }
+                .disabled(!isRunning)
+                Button("Clear Config") {
+                    clearFlow()
+                }
+                .disabled(isRunning || (flow == nil && flowJson.isEmpty))
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+            Text("Status: \(isRunning ? "Running" : "Stopped")")
+                .font(.subheadline)
+            Spacer()
         }
+        .padding()
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    private func deployFlow() {
+        do {
+            let f = try Flow(flowJson: flowJson)
+            flow = f
+        } catch {
+            print("Failed to deploy flow: \(error)")
         }
+        isRunning = false
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
+    
+    /// Configとフローをクリアする
+    private func clearFlow() {
+        flowJson = ""
+        flow = nil
+        isRunning = false
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

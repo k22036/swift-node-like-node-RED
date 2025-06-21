@@ -70,6 +70,8 @@ class Flow {
                 return try JSONDecoder().decode(InjectNode.self, from: jsonData)
             case NodeType.debug.rawValue:
                 return try JSONDecoder().decode(DebugNode.self, from: jsonData)
+            case NodeType.geolocation.rawValue:
+                return try JSONDecoder().decode(GeolocationNode.self, from: jsonData)
             default:
                 // Handle other node types or throw an error
                 print("Unsupported node type: \(type)")
