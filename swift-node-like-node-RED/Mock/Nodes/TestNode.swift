@@ -15,7 +15,7 @@
 import Foundation
 import DequeModule
 
-class TestNode: Codable, Node {
+final class TestNode: Codable, Node {
     let id: String
     let type: String
     let z: String

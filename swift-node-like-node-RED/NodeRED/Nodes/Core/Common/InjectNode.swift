@@ -8,7 +8,7 @@
 import Foundation
 
 
-class InjectNode: Codable, Node {
+final class InjectNode: Codable, Node {
     let id: String
     let type: String
     let z: String
@@ -21,8 +21,8 @@ class InjectNode: Codable, Node {
     let topic: String
     let payload: String
     let payloadType: String
-    let x: Int
-    let y: Int
+    private let x: Int
+    private let y: Int
     let wires: [[String]]
     
     struct Props: Codable {
@@ -75,7 +75,7 @@ class InjectNode: Codable, Node {
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
     
-    enum CodingKeys: String, CodingKey { // Coding keys for decoding
+    private enum CodingKeys: String, CodingKey { // Coding keys for decoding
         case id, type, z, name, props, `repeat`, crontab, once, onceDelay, topic, payload, payloadType, x, y, wires
     }
     

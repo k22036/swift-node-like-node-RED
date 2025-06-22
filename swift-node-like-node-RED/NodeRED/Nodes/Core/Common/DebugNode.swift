@@ -7,7 +7,7 @@
 
 import Foundation
 
-class DebugNode: Codable, Node {
+final class DebugNode: Codable, Node {
     let id: String
     let type: String
     let z: String
@@ -20,8 +20,8 @@ class DebugNode: Codable, Node {
     let targetType: String
     let statusVal: String
     let statusType: String
-    let x: Int
-    let y: Int
+    private let x: Int
+    private let y: Int
     let wires: [[String]]
     
     required init(from decoder: any Decoder) throws {
@@ -49,7 +49,7 @@ class DebugNode: Codable, Node {
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
     
-    enum CodingKeys: String, CodingKey { // Coding keys for decoding
+    private enum CodingKeys: String, CodingKey { // Coding keys for decoding
         case id, type, z, name, active, tosidebar, console, tostatus, complete, targetType, statusVal, statusType, x, y, wires
     }
     

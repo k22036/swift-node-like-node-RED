@@ -7,12 +7,12 @@
 
 import Foundation
 
-class Flow {
+final class Flow {
     private var nodes: [String: Node] = [:]
     private var tab: [String: Tab] = [:]
     private var config: [String: MQTTBroker] = [:]
     
-    struct RawNode: Codable {
+    private struct RawNode: Codable {
         let type: String
     }
     
