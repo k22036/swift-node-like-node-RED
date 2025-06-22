@@ -60,6 +60,11 @@ class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     var locationManager: CLLocationManager = CLLocationManager()
     weak var flow: Flow?
     var isRunning: Bool = false
+    private var lastSentTime: Date?
+    
+    deinit {
+        isRunning = false
+    }
     
     func initialize(flow: Flow) {
         self.flow = flow
@@ -120,13 +125,20 @@ class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     // MARK: - CLLocationManagerDelegate
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRunning, let loc = locations.first else { return }
+        guard isRunning, let loc = locations.last else { return }
+        
+        // Debounce to prevent rapid-fire messages
+        if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 1.0 {
+            return
+        }
+        
         let payload: [String: Double] = [
             "latitude": loc.coordinate.latitude, // 緯度
             "longitude": loc.coordinate.longitude, // 経度
         ]
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
+        lastSentTime = Date()
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

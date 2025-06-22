@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C10730322E07A00300B8BCB2 /* MQTTNIO in Frameworks */ = {isa = PBXBuildFile; productRef = C10730312E07A00300B8BCB2 /* MQTTNIO */; };
 		C18922D92E0274D600DBE5C1 /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = C18922D82E0274D600DBE5C1 /* DequeModule */; };
 /* End PBXBuildFile section */
 
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C18922D92E0274D600DBE5C1 /* DequeModule in Frameworks */,
+				C10730322E07A00300B8BCB2 /* MQTTNIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = "swift-node-like-node-RED";
 			packageProductDependencies = (
 				C18922D82E0274D600DBE5C1 /* DequeModule */,
+				C10730312E07A00300B8BCB2 /* MQTTNIO */,
 			);
 			productName = "swift-node-like-node-RED";
 			productReference = C1B7A6D42DFFAF1C00AA25D4 /* swift-node-like-node-RED.app */;
@@ -203,6 +206,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				C18922D72E0274D600DBE5C1 /* XCRemoteSwiftPackageReference "swift-collections" */,
+				C10730302E07A00300B8BCB2 /* XCRemoteSwiftPackageReference "mqtt-nio" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C1B7A6D52DFFAF1C00AA25D4 /* Products */;
@@ -573,6 +577,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		C10730302E07A00300B8BCB2 /* XCRemoteSwiftPackageReference "mqtt-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swift-server-community/mqtt-nio";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.12.1;
+			};
+		};
 		C18922D72E0274D600DBE5C1 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-collections.git";
@@ -584,6 +596,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C10730312E07A00300B8BCB2 /* MQTTNIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C10730302E07A00300B8BCB2 /* XCRemoteSwiftPackageReference "mqtt-nio" */;
+			productName = MQTTNIO;
+		};
 		C18922D82E0274D600DBE5C1 /* DequeModule */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C18922D72E0274D600DBE5C1 /* XCRemoteSwiftPackageReference "swift-collections" */;

@@ -16,8 +16,14 @@ enum NodeType: String {
     case inject = "inject"
     case debug = "debug"
     case geolocation = "geolocation"
+    case mqttin = "mqtt in"
+    case mqttout = "mqtt out"
 }
 
 enum FlowType: String {
     case tab = "tab"
+}
+
+enum ConfigType: String {
+    case MQTTBroker = "mqtt-broker"
 }

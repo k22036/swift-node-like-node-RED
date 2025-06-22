@@ -10,6 +10,7 @@ import Foundation
 class Flow {
     private var nodes: [String: Node] = [:]
     private var tab: [String: Tab] = [:]
+    private var config: [String: MQTTBroker] = [:]
     
     struct RawNode: Codable {
         let type: String
@@ -39,6 +40,8 @@ class Flow {
             
             if rawNode.type == FlowType.tab.rawValue {
                 addTab(from: jsonData)
+            } else if rawNode.type == ConfigType.MQTTBroker.rawValue {
+                addConfig(from: jsonData)
             } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
                 addNode(node)
             } else {
@@ -63,6 +66,20 @@ class Flow {
     }
     
     
+    private func addConfig(from jsonData: Data) {
+        do {
+            let config = try JSONDecoder().decode(MQTTBroker.self, from: jsonData)
+            self.config[config.id] = config
+        } catch {
+            print("Error decoding config: \(error)")
+        }
+    }
+    
+    func getConfig(by id: String) -> MQTTBroker? {
+        return config[id]
+    }
+    
+    
     private func createNode(jsonData: Data, type: String) -> Node? {
         do {
             switch type {
@@ -72,6 +89,10 @@ class Flow {
                 return try JSONDecoder().decode(DebugNode.self, from: jsonData)
             case NodeType.geolocation.rawValue:
                 return try JSONDecoder().decode(GeolocationNode.self, from: jsonData)
+            case NodeType.mqttin.rawValue:
+                return try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
+            case NodeType.mqttout.rawValue:
+                return try JSONDecoder().decode(MQTTOutNode.self, from: jsonData)
             default:
                 // Handle other node types or throw an error
                 print("Unsupported node type: \(type)")
@@ -98,7 +119,7 @@ class Flow {
     func stop() {
         terminate()
     }
-
+    
     // Extracted helpers for node lifecycle operations
     /// Applies the given action to all nodes that are available (not on a disabled tab).
     private func forEachAvailableNode(_ action: (Node) -> Void) {
@@ -114,26 +135,26 @@ class Flow {
         }
         return true
     }
-
+    
     /// Applies the given action to all nodes regardless of availability.
     private func forEachNode(_ action: (Node) -> Void) {
         for node in nodes.values {
             action(node)
         }
     }
-
+    
     func initialize() {
         forEachAvailableNode { $0.initialize(flow: self) }
     }
-
+    
     func execute() {
         forEachAvailableNode { $0.execute() }
     }
-
+    
     func terminate() {
         forEachNode { $0.terminate() }
     }
-
+    
     
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
         let outputIndex = 0
