@@ -372,7 +372,8 @@ class MQTTOutNode: Codable, Node {
     func terminate() {
         isRunning = false
         // Disconnect and shutdown
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             await disconnect()
             try client?.syncShutdownGracefully()
         }
