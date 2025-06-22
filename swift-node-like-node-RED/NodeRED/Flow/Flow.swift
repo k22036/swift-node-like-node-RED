@@ -10,6 +10,7 @@ import Foundation
 class Flow {
     private var nodes: [String: Node] = [:]
     private var tab: [String: Tab] = [:]
+    private var config: [String: MQTTBroker] = [:]
     
     struct RawNode: Codable {
         let type: String
@@ -39,7 +40,10 @@ class Flow {
             
             if rawNode.type == FlowType.tab.rawValue {
                 addTab(from: jsonData)
-            } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
+            } else if rawNode.type == ConfigType.MQTTBroker.rawValue {
+                addConfig(from: jsonData)
+            }
+            else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
                 addNode(node)
             } else {
                 print("Unsupported node type: \(rawNode.type)")
@@ -63,6 +67,20 @@ class Flow {
     }
     
     
+    private func addConfig(from jsonData: Data) {
+        do {
+            let config = try JSONDecoder().decode(MQTTBroker.self, from: jsonData)
+            self.config[config.id] = config
+        } catch {
+            print("Error decoding config: \(error)")
+        }
+    }
+    
+    func getConfig(by id: String) -> MQTTBroker? {
+        return config[id]
+    }
+    
+    
     private func createNode(jsonData: Data, type: String) -> Node? {
         do {
             switch type {
@@ -72,6 +90,10 @@ class Flow {
                 return try JSONDecoder().decode(DebugNode.self, from: jsonData)
             case NodeType.geolocation.rawValue:
                 return try JSONDecoder().decode(GeolocationNode.self, from: jsonData)
+            case NodeType.mqttin.rawValue:
+                return try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
+            case NodeType.mqttout.rawValue:
+                return try JSONDecoder().decode(MQTTOutNode.self, from: jsonData)
             default:
                 // Handle other node types or throw an error
                 print("Unsupported node type: \(type)")
