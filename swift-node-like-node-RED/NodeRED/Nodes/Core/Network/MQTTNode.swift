@@ -141,6 +141,7 @@ final class MQTTInNode: Codable, Node {
             do {
                 try await unsubscribe()
                 await disconnect()
+                try client?.syncShutdownGracefully()
             } catch {
                 print("Error during termination: \(error)")
             }
@@ -372,6 +373,7 @@ class MQTTOutNode: Codable, Node {
         // Disconnect and shutdown
         Task {
             await disconnect()
+            try client?.syncShutdownGracefully()
         }
     }
     
