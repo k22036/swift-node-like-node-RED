@@ -42,8 +42,7 @@ class Flow {
                 addTab(from: jsonData)
             } else if rawNode.type == ConfigType.MQTTBroker.rawValue {
                 addConfig(from: jsonData)
-            }
-            else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
+            } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
                 addNode(node)
             } else {
                 print("Unsupported node type: \(rawNode.type)")
@@ -120,7 +119,7 @@ class Flow {
     func stop() {
         terminate()
     }
-
+    
     // Extracted helpers for node lifecycle operations
     /// Applies the given action to all nodes that are available (not on a disabled tab).
     private func forEachAvailableNode(_ action: (Node) -> Void) {
@@ -136,26 +135,26 @@ class Flow {
         }
         return true
     }
-
+    
     /// Applies the given action to all nodes regardless of availability.
     private func forEachNode(_ action: (Node) -> Void) {
         for node in nodes.values {
             action(node)
         }
     }
-
+    
     func initialize() {
         forEachAvailableNode { $0.initialize(flow: self) }
     }
-
+    
     func execute() {
         forEachAvailableNode { $0.execute() }
     }
-
+    
     func terminate() {
         forEachNode { $0.terminate() }
     }
-
+    
     
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
         let outputIndex = 0
