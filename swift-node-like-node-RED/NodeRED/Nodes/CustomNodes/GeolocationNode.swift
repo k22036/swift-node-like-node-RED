@@ -61,6 +61,10 @@ class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     weak var flow: Flow?
     var isRunning: Bool = false
     
+    deinit {
+        isRunning = false
+    }
+    
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
