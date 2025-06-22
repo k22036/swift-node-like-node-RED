@@ -11,6 +11,56 @@ import Foundation
 
 struct MQTTNodeTests {
     
+    @Test func MQTT_in_parse() async throws {
+        // パース対象のJSON文字列
+        let jsonString = """
+                {
+                    "id": "429e8ba9ef25cd75",
+                    "type": "mqtt in",
+                    "z": "357cfb731aa85c01",
+                    "name": "",
+                    "topic": "test",
+                    "qos": "2",
+                    "datatype": "auto-detect",
+                    "broker": "42b564c03cd4a7a3",
+                    "nl": false,
+                    "rap": true,
+                    "rh": 0,
+                    "inputs": 0,
+                    "x": 250,
+                    "y": 360,
+                    "wires": [
+                        [
+                            "24c6be3e83d5481d"
+                        ]
+                    ]
+                }
+        """
+        
+        // JSON文字列をData型に変換
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            fatalError("JSON文字列をDataに変換できませんでした。")
+        }
+        
+        do {
+            let node = try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
+            
+            // パース結果の確認
+            print("✅ パースに成功しました！")
+            print("--------------------")
+            
+            #expect(node.id == "429e8ba9ef25cd75")
+            #expect(node.type == "mqtt in")
+            #expect(node.topic == "test")
+            #expect(node.qos == 2)
+            #expect(node.broker == "42b564c03cd4a7a3")
+        } catch {
+            // パースに失敗した場合のエラーハンドリング
+            print("❌ パースに失敗しました: \(error)")
+            throw error
+        }
+    }
+    
     @Test func MQTT_config_parse() async throws {
         // パース対象のJSON文字列
         let jsonString = """
