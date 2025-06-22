@@ -41,8 +41,6 @@ struct GeolocationNodeTests {
         #expect(node.repeat == 5.0)
         #expect(node.once == true)
         #expect(node.onceDelay == 0.3)
-        #expect(node.x == 10)
-        #expect(node.y == 20)
         #expect(node.wires.first?.first == "node1")
     }
 

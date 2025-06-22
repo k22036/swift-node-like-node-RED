@@ -5,7 +5,7 @@
 //  Created by k22036kk on 2025/06/21.
 //
 
-class Tab: Codable {
+final class Tab: Codable {
     let id: String
     let type: String
     let label: String

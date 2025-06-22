@@ -22,8 +22,8 @@ final class MQTTInNode: Codable, Node {
     let rap: Bool
     let rh: Int
     let inputs: Int
-    let x: Int
-    let y: Int
+    private let x: Int
+    private let y: Int
     let wires: [[String]]
     
     required init(from decoder: any Decoder) throws {
@@ -60,7 +60,7 @@ final class MQTTInNode: Codable, Node {
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
     
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case id, type, z, name, topic, qos, datatype, broker, nl, rap, rh, inputs, x, y, wires
     }
     
@@ -240,7 +240,7 @@ final class MQTTInNode: Codable, Node {
     }
 }
 
-class MQTTOutNode: Codable, Node {
+final class MQTTOutNode: Codable, Node {
     let id: String
     let type: String
     let z: String
@@ -254,8 +254,8 @@ class MQTTOutNode: Codable, Node {
     let correl: String
     let expiry: String
     let broker: String
-    let x: Int
-    let y: Int
+    private let x: Int
+    private let y: Int
     let wires: [[String]]
     
     required init(from decoder: any Decoder) throws {
@@ -292,7 +292,7 @@ class MQTTOutNode: Codable, Node {
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
     
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case id, type, z, name, topic, qos, retain, respTopic, contentType, userProps, correl, expiry, broker, x, y, wires
     }
     
@@ -444,7 +444,7 @@ class MQTTOutNode: Codable, Node {
 }
 
 // MQTT Broker configuration class
-class MQTTBroker: Codable {
+final class MQTTBroker: Codable {
     let id: String
     let type: String
     let name: String

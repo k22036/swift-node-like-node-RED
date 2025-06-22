@@ -2,7 +2,7 @@ import Foundation
 import CoreLocation
 
 /// Custom node that retrieves and sends device geolocation information
-class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
+final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     let id: String
     let type: String
     let z: String
@@ -10,8 +10,8 @@ class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     let `repeat`: Double?
     let once: Bool
     let onceDelay: Double
-    let x: Int
-    let y: Int
+    private let x: Int
+    private let y: Int
     let wires: [[String]]
     
     required init(from decoder: any Decoder) throws {
@@ -53,7 +53,7 @@ class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
     
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
     
