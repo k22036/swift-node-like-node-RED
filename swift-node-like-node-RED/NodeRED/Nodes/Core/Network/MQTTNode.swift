@@ -413,15 +413,15 @@ class MQTTOutNode: Codable, Node {
         
         do {
             if version == .v5_0 {
-                let pub = try await client.v5.publish(to: self.topic,
-                                                      payload: payload,
-                                                      qos: MQTTQoS(rawValue: UInt8(self.qos ?? 0)) ?? .atMostOnce)
-                print("Published message to topic: \(self.topic) with QoS: \(self.qos ?? 0)")
+                _ = try await client.v5.publish(to: self.topic,
+                                                payload: payload,
+                                                qos: MQTTQoS(rawValue: UInt8(self.qos)) ?? .atMostOnce)
+                print("Published message to topic: \(self.topic) with QoS: \(self.qos)")
             } else {
-                let pub: () = try await client.publish(to: self.topic,
-                                                       payload: payload,
-                                                       qos: MQTTQoS(rawValue: UInt8(self.qos ?? 0)) ?? .atMostOnce)
-                print("Published message to topic: \(self.topic) with QoS: \(self.qos ?? 0)")
+                let _: () = try await client.publish(to: self.topic,
+                                                     payload: payload,
+                                                     qos: MQTTQoS(rawValue: UInt8(self.qos)) ?? .atMostOnce)
+                print("Published message to topic: \(self.topic) with QoS: \(self.qos)")
             }
         } catch {
             print("Failed to publish message: \(error)")
