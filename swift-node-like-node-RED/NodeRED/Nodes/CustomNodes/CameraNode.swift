@@ -130,7 +130,28 @@ extension CameraNode: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard isRunning && shouldCaptureFrame else { return }
         shouldCaptureFrame = false
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        
+        var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        
+        // Get current device orientation and rotate the image
+        let orientation = UIDevice.current.orientation
+        let rotation: CGAffineTransform
+        
+        switch orientation {
+        case .portrait:
+            rotation = CGAffineTransform(rotationAngle: -(.pi / 2))
+        case .portraitUpsideDown:
+            rotation = CGAffineTransform(rotationAngle: .pi / 2)
+        case .landscapeLeft:
+            rotation = CGAffineTransform(rotationAngle: .pi)
+        case .landscapeRight:
+            rotation = CGAffineTransform(rotationAngle: 0)
+        default:
+            // Assume portrait if orientation is unknown
+            rotation = CGAffineTransform(rotationAngle: -(.pi / 2))
+        }
+        ciImage = ciImage.transformed(by: rotation)
+        
         let context = CIContext()
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
         let uiImage = UIImage(cgImage: cgImage)
