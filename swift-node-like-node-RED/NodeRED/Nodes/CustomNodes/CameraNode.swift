@@ -25,6 +25,9 @@ final class CameraNode: NSObject, Codable, Node {
     weak var flow: Flow?
     var isRunning: Bool = false
 
+    // Add a shared CIContext to reuse for image conversion
+    private lazy var ciContext = CIContext()
+
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
@@ -154,7 +157,8 @@ extension CameraNode: AVCaptureVideoDataOutputSampleBufferDelegate {
         }
         ciImage = ciImage.transformed(by: rotation)
         
-        let context = CIContext()
+        // Use the shared context instead of creating a new one each time
+        let context = ciContext
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
         let uiImage = UIImage(cgImage: cgImage)
         guard let data = uiImage.jpegData(compressionQuality: 0.8) else { return }
