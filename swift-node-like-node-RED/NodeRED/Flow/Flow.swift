@@ -89,6 +89,8 @@ final class Flow {
                 return try JSONDecoder().decode(DebugNode.self, from: jsonData)
             case NodeType.geolocation.rawValue:
                 return try JSONDecoder().decode(GeolocationNode.self, from: jsonData)
+            case NodeType.camera.rawValue:
+                return try JSONDecoder().decode(CameraNode.self, from: jsonData)
             case NodeType.mqttin.rawValue:
                 return try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
             case NodeType.mqttout.rawValue:
@@ -109,6 +111,11 @@ final class Flow {
     
     func getNode(by id: String) -> Node? {
         return nodes[id]
+    }
+    
+    /// Returns the first CameraNode in this flow, if any
+    func getCameraNode() -> CameraNode? {
+        return nodes.values.compactMap { $0 as? CameraNode }.first
     }
     
     func start() {
