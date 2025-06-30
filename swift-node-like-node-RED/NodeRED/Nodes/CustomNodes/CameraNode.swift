@@ -84,7 +84,9 @@ final class CameraNode: NSObject, Codable, Node {
             captureSession.addOutput(videoOutput)
         }
         captureSession.commitConfiguration()
-        captureSession.startRunning()
+        Task {
+            captureSession.startRunning()
+        }
     }
 
     func execute() {
