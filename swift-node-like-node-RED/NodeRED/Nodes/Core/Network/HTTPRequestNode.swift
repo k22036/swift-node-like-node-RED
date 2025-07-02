@@ -96,6 +96,9 @@ final class HTTPRequestNode: Codable, Node {
                 if paytoqs == "body" {
                     let contentTypeSet = false
                     if let dataPayload = msg.payload as? Data {
+                        if !contentTypeSet {
+                            request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+                        }
                         request.httpBody = dataPayload
                     } else if let dictPayload = msg.payload as? [String: Any] {
                         if let bodyData = try? JSONSerialization.data(withJSONObject: dictPayload) {
