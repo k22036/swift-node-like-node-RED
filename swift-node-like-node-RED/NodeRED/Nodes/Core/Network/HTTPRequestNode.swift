@@ -82,16 +82,18 @@ final class HTTPRequestNode: Codable, Node {
         Task {
             guard isRunning else { return }
             
+            // Build URL with query string if needed
+            let requestURLString = self.url
+            guard let requestURL = URL(string: requestURLString) else {
+                print("Invalid URL: \(requestURLString)")
+                return
+            }
+            let method = self.method.uppercased()
+            
             for await msg in messageStream where isRunning {
-                // Build URL with query string if needed
-                let requestURLString = self.url
-                guard let requestURL = URL(string: requestURLString) else {
-                    print("Invalid URL: \(requestURLString)")
-                    continue
-                }
                 var request = URLRequest(url: requestURL)
-                request.httpMethod = method.uppercased()
-                if method.uppercased() != "GET" {
+                request.httpMethod = method
+                if method != "GET" {
                     // Set request body
                     if let dictPayload = msg.payload as? [String: Any],
                        let bodyData = try? JSONSerialization.data(withJSONObject: dictPayload) {
