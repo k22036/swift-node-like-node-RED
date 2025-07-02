@@ -93,14 +93,22 @@ final class HTTPRequestNode: Codable, Node {
             for await msg in messageStream where isRunning {
                 var request = URLRequest(url: requestURL)
                 request.httpMethod = method
-                if method != "GET" {
-                    // Set request body
-                    if let dictPayload = msg.payload as? [String: Any],
-                       let bodyData = try? JSONSerialization.data(withJSONObject: dictPayload) {
-                        request.httpBody = bodyData
-                        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                if paytoqs == "body" {
+                    let contentTypeSet = false
+                    if let dataPayload = msg.payload as? Data {
+                        request.httpBody = dataPayload
+                    } else if let dictPayload = msg.payload as? [String: Any] {
+                        if let bodyData = try? JSONSerialization.data(withJSONObject: dictPayload) {
+                            request.httpBody = bodyData
+                            if !contentTypeSet {
+                                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                            }
+                        }
                     } else if let payloadStr = msg.payload as? String {
                         request.httpBody = payloadStr.data(using: .utf8)
+                        if !contentTypeSet {
+                            request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+                        }
                     }
                 }
                 do {
