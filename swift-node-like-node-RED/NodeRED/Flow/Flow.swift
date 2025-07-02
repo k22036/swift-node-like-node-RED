@@ -83,18 +83,24 @@ final class Flow {
     private func createNode(jsonData: Data, type: String) -> Node? {
         do {
             switch type {
+                // common
             case NodeType.inject.rawValue:
                 return try JSONDecoder().decode(InjectNode.self, from: jsonData)
             case NodeType.debug.rawValue:
                 return try JSONDecoder().decode(DebugNode.self, from: jsonData)
-            case NodeType.geolocation.rawValue:
-                return try JSONDecoder().decode(GeolocationNode.self, from: jsonData)
-            case NodeType.camera.rawValue:
-                return try JSONDecoder().decode(CameraNode.self, from: jsonData)
+                // network
             case NodeType.mqttin.rawValue:
                 return try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
             case NodeType.mqttout.rawValue:
                 return try JSONDecoder().decode(MQTTOutNode.self, from: jsonData)
+            case NodeType.http_request.rawValue:
+                return try JSONDecoder().decode(HTTPRequestNode.self, from: jsonData)
+                // mobile
+            case NodeType.geolocation.rawValue:
+                return try JSONDecoder().decode(GeolocationNode.self, from: jsonData)
+            case NodeType.camera.rawValue:
+                return try JSONDecoder().decode(CameraNode.self, from: jsonData)
+            
             default:
                 // Handle other node types or throw an error
                 print("Unsupported node type: \(type)")

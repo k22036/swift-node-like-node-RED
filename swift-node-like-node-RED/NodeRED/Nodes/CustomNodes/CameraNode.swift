@@ -162,8 +162,7 @@ extension CameraNode: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
         let uiImage = UIImage(cgImage: cgImage)
         guard let data = uiImage.jpegData(compressionQuality: 0.8) else { return }
-        let base64String = data.base64EncodedString()
-        let msg = NodeMessage(payload: base64String)
+        let msg = NodeMessage(payload: data)
         send(msg: msg)
     }
 }

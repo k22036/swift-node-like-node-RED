@@ -13,12 +13,16 @@ enum NodeRedType: String {
 }
 
 enum NodeType: String {
+    // common
     case inject = "inject"
     case debug = "debug"
-    case geolocation = "geolocation"
-    case camera = "camera"
+    // network
     case mqttin = "mqtt in"
     case mqttout = "mqtt out"
+    case http_request = "http request"
+    // mobile
+    case geolocation = "geolocation"
+    case camera = "camera"
 }
 
 enum FlowType: String {
