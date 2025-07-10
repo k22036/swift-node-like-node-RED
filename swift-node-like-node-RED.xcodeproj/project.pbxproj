@@ -34,9 +34,22 @@
 		C1B7A6ED2DFFAF1D00AA25D4 /* swift-node-like-node-REDUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "swift-node-like-node-REDUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C16BB8E02E1F74E400DC5B86 /* Exceptions for "swift-node-like-node-RED" folder in "swift-node-like-node-RED" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C1B7A6D32DFFAF1C00AA25D4 /* swift-node-like-node-RED */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C1B7A6D62DFFAF1C00AA25D4 /* swift-node-like-node-RED */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C16BB8E02E1F74E400DC5B86 /* Exceptions for "swift-node-like-node-RED" folder in "swift-node-like-node-RED" target */,
+			);
 			path = "swift-node-like-node-RED";
 			sourceTree = "<group>";
 		};
@@ -415,6 +428,7 @@
 				DEVELOPMENT_TEAM = JSGGNXCXA4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "swift-node-like-node-RED/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "camera image to flow";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "location to flow";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -445,6 +459,7 @@
 				DEVELOPMENT_TEAM = JSGGNXCXA4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "swift-node-like-node-RED/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "camera image to flow";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "location to flow";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
