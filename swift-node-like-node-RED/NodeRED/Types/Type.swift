@@ -25,6 +25,7 @@ enum NodeType: String {
     case camera = "camera"
     case accelerometer = "accelerometer"
     case attitude = "attitude"
+    case magnetometer = "magnetometer"
 }
 
 enum FlowType: String {
