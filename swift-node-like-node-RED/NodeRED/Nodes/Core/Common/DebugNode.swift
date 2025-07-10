@@ -69,8 +69,6 @@ final class DebugNode: Codable, Node {
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
-        // Start event-driven processing
-        execute()
     }
 
     func execute() {

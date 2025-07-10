@@ -72,7 +72,6 @@ final class CameraNode: NSObject, Codable, Node {
         self.flow = flow
         isRunning = true
         setupSession()
-        execute()
     }
 
     private func setupSession() {

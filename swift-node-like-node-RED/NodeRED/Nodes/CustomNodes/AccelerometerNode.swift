@@ -70,7 +70,6 @@ final class AccelerometerNode: NSObject, Codable, Node {
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
-        execute()
     }
     
     func execute() {

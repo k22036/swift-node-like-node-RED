@@ -68,7 +68,6 @@ final class GravityNode: NSObject, Codable, Node {
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
-        execute()
     }
     
     func execute() {

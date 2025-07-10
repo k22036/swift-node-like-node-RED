@@ -71,7 +71,6 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         isRunning = true
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
-        execute()
     }
     
     func execute() {
