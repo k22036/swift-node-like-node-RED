@@ -29,6 +29,7 @@ enum NodeType: String {
     case gravity = "gravity"
     case altitude = "altitude"
     case velocity = "velocity"
+    case pressure = "pressure"
 }
 
 enum FlowType: String {
