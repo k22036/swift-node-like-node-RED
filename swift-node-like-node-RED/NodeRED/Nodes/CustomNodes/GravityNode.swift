@@ -1,8 +1,8 @@
 import Foundation
-import CoreLocation
+import CoreMotion
 
-/// Custom node that retrieves and sends device geolocation information
-final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
+/// Custom node that retrieves and sends device gravity information
+final class GravityNode: NSObject, Codable, Node {
     let id: String
     let type: String
     let z: String
@@ -19,16 +19,15 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         self.id = try container.decode(String.self, forKey: .id)
         
         let _type = try container.decode(String.self, forKey: .type)
-        guard _type == NodeType.geolocation.rawValue else {
+        guard _type == NodeType.gravity.rawValue else {
             throw DecodingError.dataCorruptedError(forKey: .type, in: container,
-                                                   debugDescription: "Expected type to be 'geolocation', but found \(_type)")
+                                                   debugDescription: "Expected type to be 'gravity', but found \(_type)")
         }
         self.type = _type
         
         self.z = try container.decode(String.self, forKey: .z)
         self.name = try container.decode(String.self, forKey: .name)
         
-        // Interval between updates (seconds)
         if let repeatValStr = try? container.decode(String.self, forKey: .repeat), let val = Double(repeatValStr) {
             self.`repeat` = val
         } else if let val = try? container.decode(Double.self, forKey: .repeat) {
@@ -39,7 +38,6 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         
         self.once = try container.decode(Bool.self, forKey: .once)
         
-        // Delay before first update
         if let delayStr = try? container.decode(String.self, forKey: .onceDelay), let val = Double(delayStr) {
             self.onceDelay = val
         } else if let val = try? container.decode(Double.self, forKey: .onceDelay) {
@@ -57,20 +55,19 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
     
-    var locationManager: CLLocationManager = CLLocationManager()
+    var motionManager: CMMotionManager = CMMotionManager()
     weak var flow: Flow?
     var isRunning: Bool = false
     private var lastSentTime: Date?
     
     deinit {
         isRunning = false
+        motionManager.stopDeviceMotionUpdates()
     }
     
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
-        locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
     }
     
     func execute() {
@@ -80,7 +77,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
                     try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                 }
                 if !isRunning { return }
-                requestLocation()
+                requestGravity()
             }
             guard let interval = `repeat`, interval > 0 else {
                 return
@@ -88,13 +85,14 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
             while isRunning {
                 try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 if !isRunning { return }
-                requestLocation()
+                requestGravity()
             }
         }
     }
     
     func terminate() {
         isRunning = false
+        motionManager.stopDeviceMotionUpdates()
     }
     
     func receive(msg: NodeMessage) {
@@ -105,42 +103,30 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         flow?.routeMessage(from: self, message: msg)
     }
     
-    private func requestLocation() {
-        locationManager.requestLocation()
-    }
-    
-    /// For testing: simulate a location update
-    func simulateLocation(latitude: Double, longitude: Double) {
-        let location = CLLocation(
-            coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-            altitude: 0,
-            horizontalAccuracy: 5,
-            verticalAccuracy: 5,
-            timestamp: Date()
-        )
-        self.locationManager(self.locationManager, didUpdateLocations: [location])
-    }
-    
-    // MARK: - CLLocationManagerDelegate
-    
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRunning, let loc = locations.last else { return }
-        
-        // Debounce to prevent rapid-fire messages
-        if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 1.0 {
-            return
+    private func requestGravity() {
+        guard motionManager.isDeviceMotionAvailable else { return }
+        motionManager.startDeviceMotionUpdates(to: OperationQueue.current ?? OperationQueue.main) { [weak self] data, error in
+            guard let self = self, self.isRunning, let gravity = data?.gravity else { return }
+            // Debounce to prevent rapid-fire messages
+            if let lastSent = self.lastSentTime, Date().timeIntervalSince(lastSent) < 0.1 {
+                return
+            }
+            let payload: [String: Double] = [
+                "x": gravity.x,
+                "y": gravity.y,
+                "z": gravity.z
+            ]
+            let msg = NodeMessage(payload: payload)
+            self.send(msg: msg)
+            self.lastSentTime = Date()
+            self.motionManager.stopDeviceMotionUpdates()
         }
-        
-        let payload: [String: Double] = [
-            "latitude": loc.coordinate.latitude, // 緯度
-            "longitude": loc.coordinate.longitude, // 経度
-        ]
+    }
+    
+    /// For testing: simulate a gravity update
+    func simulateGravity(x: Double, y: Double, z: Double) {
+        let payload: [String: Double] = ["x": x, "y": y, "z": z]
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
-        lastSentTime = Date()
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("GeolocationNode error: \(error.localizedDescription)")
     }
 }

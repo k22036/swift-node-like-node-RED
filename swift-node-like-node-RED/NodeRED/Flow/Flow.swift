@@ -106,6 +106,8 @@ final class Flow {
                 return try JSONDecoder().decode(AttitudeNode.self, from: jsonData)
             case NodeType.magnetometer.rawValue:
                 return try JSONDecoder().decode(MagnetometerNode.self, from: jsonData)
+            case NodeType.gravity.rawValue:
+                return try JSONDecoder().decode(GravityNode.self, from: jsonData)
             
             default:
                 // Handle other node types or throw an error
