@@ -27,6 +27,7 @@ enum NodeType: String {
     case attitude = "attitude"
     case magnetometer = "magnetometer"
     case gravity = "gravity"
+    case altitude = "altitude"
 }
 
 enum FlowType: String {
