@@ -2,20 +2,20 @@ import Testing
 @testable import swift_node_like_node_RED
 import Foundation
 
-struct AccelerometerNodeTests {
+struct AttitudeNodeTests {
     @Test func parse() async throws {
         let jsonString = """
         [
             {
-                "id": "accel1",
-                "type": "accelerometer",
+                "id": "att1",
+                "type": "attitude",
                 "z": "test-z",
-                "name": "accel test",
-                "repeat": "2.5",
+                "name": "att test",
+                "repeat": "1.5",
                 "once": true,
-                "onceDelay": "0.2",
-                "x": 11,
-                "y": 22,
+                "onceDelay": "0.1",
+                "x": 10,
+                "y": 20,
                 "wires": [["node2"]]
             }
         ]
@@ -23,26 +23,26 @@ struct AccelerometerNodeTests {
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
-        let nodes = try JSONDecoder().decode([AccelerometerNode].self, from: data)
+        let nodes = try JSONDecoder().decode([AttitudeNode].self, from: data)
         guard let node = nodes.first else {
-            fatalError("No AccelerometerNode found in JSON data")
+            fatalError("No AttitudeNode found in JSON data")
         }
-        #expect(node.id == "accel1")
-        #expect(node.type == NodeType.accelerometer.rawValue)
+        #expect(node.id == "att1")
+        #expect(node.type == "attitude")
         #expect(node.z == "test-z")
-        #expect(node.name == "accel test")
-        #expect(node.repeat == 2.5)
+        #expect(node.name == "att test")
+        #expect(node.repeat == 1.5)
         #expect(node.once == true)
-        #expect(node.onceDelay == 0.2)
+        #expect(node.onceDelay == 0.1)
         #expect(node.wires.first?.first == "node2")
     }
 
-    @Test func simulateAccelerometer() async throws {
+    @Test func simulateAttitude() async throws {
         let jsonString = """
         [
             {
-                "id": "accel2",
-                "type": "accelerometer",
+                "id": "att2",
+                "type": "attitude",
                 "z": "test-z",
                 "name": "",
                 "repeat": "",
@@ -57,14 +57,14 @@ struct AccelerometerNodeTests {
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
-        let node = try JSONDecoder().decode([AccelerometerNode].self, from: data).first!
+        let node = try JSONDecoder().decode([AttitudeNode].self, from: data).first!
         let testNode = try TestNode(id: "test-node")
         let flow = try Flow(flowJson: "[]")
         flow.addNode(node)
         flow.addNode(testNode)
 
         node.initialize(flow: flow)
-        node.simulateAccelerometer(x: 0.11, y: 0.22, z: 0.33)
+        node.simulateAttitude(pitch: 0.1, roll: 0.2, yaw: 0.3)
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
         node.terminate()
 
@@ -73,10 +73,9 @@ struct AccelerometerNodeTests {
             guard let payload = msg.payload as? [String: Double] else {
                 fatalError("Payload is not a dictionary")
             }
-            #expect(payload["x"] == 0.11)
-            #expect(payload["y"] == 0.22)
-            #expect(payload["z"] == 0.33)
+            #expect(payload["pitch"] == 0.1)
+            #expect(payload["roll"] == 0.2)
+            #expect(payload["yaw"] == 0.3)
         }
     }
 }
-

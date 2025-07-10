@@ -102,6 +102,8 @@ final class Flow {
                 return try JSONDecoder().decode(CameraNode.self, from: jsonData)
             case NodeType.accelerometer.rawValue:
                 return try JSONDecoder().decode(AccelerometerNode.self, from: jsonData)
+            case NodeType.attitude.rawValue:
+                return try JSONDecoder().decode(AttitudeNode.self, from: jsonData)
             
             default:
                 // Handle other node types or throw an error

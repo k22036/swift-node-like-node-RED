@@ -79,6 +79,8 @@ struct GeolocationNodeTests {
 
         // Allow asynchronous send
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
+        
+        node.terminate()
 
         #expect(testNode.buffer.count == 1)
         if let msg = testNode.buffer.first {
