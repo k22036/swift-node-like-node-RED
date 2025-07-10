@@ -23,6 +23,7 @@ enum NodeType: String {
     // mobile
     case geolocation = "geolocation"
     case camera = "camera"
+    case accelerometer = "accelerometer"
 }
 
 enum FlowType: String {
