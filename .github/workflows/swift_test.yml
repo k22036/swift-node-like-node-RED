@@ -43,14 +43,14 @@ jobs:
         run: |
           xcodebuild build-for-testing \
             -scheme swift-node-like-node-RED \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath .build
 
       - name: Run tests
         run: |
           xcodebuild test-without-building \
             -scheme swift-node-like-node-RED \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath .build \
             -parallel-testing-enabled YES \
             -parallel-testing-worker-count 4
