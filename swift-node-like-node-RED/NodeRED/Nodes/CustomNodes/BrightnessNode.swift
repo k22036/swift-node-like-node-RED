@@ -99,17 +99,20 @@ final class BrightnessNode: NSObject, Codable, Node {
         flow?.routeMessage(from: self, message: msg)
     }
     
-    private func requestBrightness() {
-        let brightness = UIScreen.main.brightness
+    /// Helper function to send brightness message
+    private func sendBrightnessMessage(brightness: Double) {
         let payload: [String: Double] = ["brightness": brightness]
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
     }
     
+    private func requestBrightness() {
+        let brightness = UIScreen.main.brightness
+        sendBrightnessMessage(brightness: brightness)
+    }
+    
     /// For testing: simulate a brightness update
     func simulateBrightness(_ brightness: Double) {
-        let payload: [String: Double] = ["brightness": brightness]
-        let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        sendBrightnessMessage(brightness: brightness)
     }
 }
