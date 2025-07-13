@@ -29,6 +29,4 @@ jobs:
           xcodebuild test \
             -scheme swift-node-like-node-RED \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            -derivedDataPath .build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
+            -derivedDataPath .build
