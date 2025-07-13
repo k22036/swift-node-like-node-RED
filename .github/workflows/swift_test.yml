@@ -18,37 +18,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate source files hash
-        id: source_hash
-        run: |
-          echo "hash=$(find . -path ./SourcePackages -prune -o -name '*.swift' -print0 | xargs -0 shasum | shasum | awk '{print $1}')" >> $GITHUB_OUTPUT
-
       - name: Cache Swift Packages
         uses: actions/cache@v4
         with:
-          path: SourcePackages
+          path: |
+            .build
+            SourcePackages
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
 
-      - name: Cache Build
-        uses: actions/cache@v4
-        with:
-          path: .build
-          key: ${{ runner.os }}-build-${{ steps.source_hash.outputs.hash }}-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-
-      - name: Build for testing
+      - name: Build and test
         run: |
-          xcodebuild build-for-testing \
-            -scheme swift-node-like-node-RED \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            -derivedDataPath .build
-
-      - name: Run tests
-        run: |
-          xcodebuild test-without-building \
+          xcodebuild test \
             -scheme swift-node-like-node-RED \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath .build \
