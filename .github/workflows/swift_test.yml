@@ -1,4 +1,7 @@
 name: Swift CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -9,6 +12,7 @@ on:
 jobs:
   build-and-test:
     runs-on: macos-15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -29,4 +33,6 @@ jobs:
           xcodebuild test \
             -scheme swift-node-like-node-RED \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            -derivedDataPath .build
+            -derivedDataPath .build \
+            -parallel-testing-enabled YES \
+            -parallel-testing-worker-count 4
