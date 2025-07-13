@@ -14,8 +14,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run tests
+      - name: Cache Swift Packages
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Build and test
         run: |
           xcodebuild test \
             -scheme swift-node-like-node-RED \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -derivedDataPath .build
