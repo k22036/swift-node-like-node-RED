@@ -28,6 +28,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
       - name: Build and test
         run: |
           xcodebuild test \
