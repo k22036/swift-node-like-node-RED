@@ -116,6 +116,8 @@ final class Flow {
                 return try JSONDecoder().decode(PressureNode.self, from: jsonData)
             case NodeType.brightness.rawValue:
                 return try JSONDecoder().decode(BrightnessNode.self, from: jsonData)
+            case NodeType.direction.rawValue:
+                return try JSONDecoder().decode(DirectionNode.self, from: jsonData)
             
             default:
                 // Handle other node types or throw an error
