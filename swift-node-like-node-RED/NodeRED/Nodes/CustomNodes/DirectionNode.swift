@@ -87,7 +87,7 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         }
     }
     
-    /// 方角をリクエストする
+    /// Requests the current device heading
     private func requestDirection() {
         locationManager?.startUpdatingHeading()
     }
@@ -117,7 +117,7 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         guard isRunning else { return }
         sendHeadingMessage(newHeading.trueHeading)
-        // 1回だけ取得したら停止（repeat時は再度呼ばれる）
+        // Stop after retrieving the heading once
         locationManager?.stopUpdatingHeading()
     }
     
