@@ -31,6 +31,7 @@ enum NodeType: String {
     case velocity = "velocity"
     case pressure = "pressure"
     case brightness = "brightness"
+    case direction = "direction"
 }
 
 enum FlowType: String {
