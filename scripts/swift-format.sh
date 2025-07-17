@@ -21,7 +21,7 @@ if [ -n "$GITHUB_ACTIONS" ]; then
             continue
         else
             echo "Difference found in $file:"
-            echo "$diff_output"
+            # echo "$diff_output"
             exit_code=1
         fi
     done < <(find "$TARGET_DIR" -type f -name '*.swift')

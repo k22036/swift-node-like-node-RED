@@ -34,8 +34,9 @@ jobs:
       - name: Ensure swift-format.sh is executable
         run: chmod +x ./scripts/swift-format.sh
 
-      - name: format code
+      - name: Format code
         run: ./scripts/swift-format.sh
+        shell: sh
 
       - name: Build and test
         run: |
