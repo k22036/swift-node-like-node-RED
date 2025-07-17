@@ -190,7 +190,8 @@ final class InjectNode: Codable, Node {
         case NodeRedType.string.rawValue:
             return NodeMessageType.stringValue(value)
         case NodeRedType.boolean.rawValue:
-            return NodeMessageType.boolValue(convertToBoolean(value) ?? false)  // Default to false if conversion fails
+            // Default to false if conversion fails
+            return NodeMessageType.boolValue(convertToBoolean(value) ?? false)
         default:
             return nil  // Unsupported type
         }

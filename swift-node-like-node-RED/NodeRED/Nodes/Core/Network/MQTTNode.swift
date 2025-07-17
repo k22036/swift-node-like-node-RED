@@ -491,7 +491,7 @@ final class MQTTBroker: Codable {
         self.id = try container.decode(String.self, forKey: .id)
 
         let _type = try container.decode(String.self, forKey: .type)
-        guard _type == ConfigType.MQTTBroker.rawValue else {
+        guard _type == ConfigType.mqttBroker.rawValue else {
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: container,
                 debugDescription: "Expected type to be 'mqtt-broker', but found \(_type)")

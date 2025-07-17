@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class swift_node_like_node_REDUITestsLaunchTests: XCTestCase {
+final class Swift_node_like_node_REDUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

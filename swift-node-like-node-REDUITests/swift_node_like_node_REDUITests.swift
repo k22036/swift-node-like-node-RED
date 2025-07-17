@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class swift_node_like_node_REDUITests: XCTestCase {
+final class Swift_node_like_node_REDUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

@@ -46,7 +46,7 @@ final class Flow {
 
             if rawNode.type == FlowType.tab.rawValue {
                 addTab(from: jsonData)
-            } else if rawNode.type == ConfigType.MQTTBroker.rawValue {
+            } else if rawNode.type == ConfigType.mqttBroker.rawValue {
                 addConfig(from: jsonData)
             } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
                 addNode(node)
@@ -96,7 +96,7 @@ final class Flow {
                 return try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
             case NodeType.mqttout.rawValue:
                 return try JSONDecoder().decode(MQTTOutNode.self, from: jsonData)
-            case NodeType.http_request.rawValue:
+            case NodeType.httpRequest.rawValue:
                 return try JSONDecoder().decode(HTTPRequestNode.self, from: jsonData)
             // mobile
             case NodeType.geolocation.rawValue:

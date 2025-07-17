@@ -182,7 +182,7 @@ struct InjectNodeTests {
             print("buffer length: \(testNode.buffer.count)")
             #expect(testNode.buffer.count > 0)
 
-            testNode.buffer.forEach { msg in
+            for msg in testNode.buffer {
                 print("ペイロード: \(msg.payload)")
                 #expect(msg.payload is Int)
                 #expect(msg.payload as? Int == 1)

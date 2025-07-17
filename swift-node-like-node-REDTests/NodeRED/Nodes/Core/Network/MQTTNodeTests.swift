@@ -12,7 +12,7 @@ import Testing
 
 struct MQTTNodeTests {
 
-    @Test func MQTT_in_parse() async throws {
+    @Test func mqttInParse() async throws {
         // パース対象のJSON文字列
         let jsonString = """
                     {
@@ -62,7 +62,7 @@ struct MQTTNodeTests {
         }
     }
 
-    @Test func MQTT_out_parse() async throws {
+    @Test func mqttOutParse() async throws {
         // パース対象のJSON文字列
         let jsonString = """
             {
@@ -109,7 +109,7 @@ struct MQTTNodeTests {
         }
     }
 
-    @Test func MQTT_config_parse() async throws {
+    @Test func mqttConfigParse() async throws {
         // パース対象のJSON文字列
         let jsonString = """
                 {

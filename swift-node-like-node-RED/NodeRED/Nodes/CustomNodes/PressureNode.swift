@@ -117,6 +117,7 @@ final class PressureNode: NSObject, Codable, Node {
                 return
             }
             // pressure: kPa -> hPa
+            // swift-format-ignore: AlwaysUseLowerCamelCase
             let pressure_hPa = data.pressure.doubleValue * 10.0
             let payload: [String: Double] = ["pressure": pressure_hPa]
             let msg = NodeMessage(payload: payload)
@@ -127,6 +128,7 @@ final class PressureNode: NSObject, Codable, Node {
     }
 
     /// For testing: simulate a pressure update
+    // swift-format-ignore: AlwaysUseLowerCamelCase
     func simulatePressure(_ pressure_hPa: Double) {
         let payload: [String: Double] = ["pressure": pressure_hPa]
         let msg = NodeMessage(payload: payload)

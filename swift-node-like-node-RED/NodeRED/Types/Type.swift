@@ -19,7 +19,7 @@ enum NodeType: String {
     // network
     case mqttin = "mqtt in"
     case mqttout = "mqtt out"
-    case http_request = "http request"
+    case httpRequest = "http request"
     // mobile
     case geolocation = "geolocation"
     case camera = "camera"
@@ -39,5 +39,5 @@ enum FlowType: String {
 }
 
 enum ConfigType: String {
-    case MQTTBroker = "mqtt-broker"
+    case mqttBroker = "mqtt-broker"
 }
