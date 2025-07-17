@@ -38,6 +38,13 @@ jobs:
         run: ./scripts/swift-format.sh
         shell: sh
 
+      - name: Ensure swift-lint.sh is executable
+        run: chmod +x ./scripts/swift-lint.sh
+
+      - name: Format code
+        run: ./scripts/swift-lint.sh
+        shell: sh
+
       - name: Build and test
         run: |
           xcodebuild test \
