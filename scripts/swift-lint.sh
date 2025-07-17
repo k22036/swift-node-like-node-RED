@@ -12,9 +12,9 @@ fi
 
 # xcrun swift-format lint --recursive "$TARGET_DIR"
 if output=$(xcrun swift-format lint --recursive "$TARGET_DIR"); then
-    echo "No formatting issues found."
-else
     echo "Formatting issues found:"
     echo "$output"
     exit 1
+else
+    echo "No formatting issues found."
 fi
