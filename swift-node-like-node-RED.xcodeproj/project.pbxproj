@@ -119,6 +119,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C1B7A6F72DFFAF1D00AA25D4 /* Build configuration list for PBXNativeTarget "swift-node-like-node-RED" */;
 			buildPhases = (
+				C16BBA2C2E2738E400DC5B86 /* ShellScript */,
 				C1B7A6D02DFFAF1C00AA25D4 /* Sources */,
 				C1B7A6D12DFFAF1C00AA25D4 /* Frameworks */,
 				C1B7A6D22DFFAF1C00AA25D4 /* Resources */,
@@ -257,6 +258,27 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		C16BBA2C2E2738E400DC5B86 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n# フォーマットしたいフォルダを指定\nTARGET_DIR=\"$SRCROOT/swift-node-like-node-RED\"\n\n# Xcode内蔵のswift-formatを使用してフォーマットを実行\nif xcrun --find swift-format >/dev/null; then\n  xcrun swift-format format --in-place --recursive \"$TARGET_DIR\"\nelse\n  echo \"warning: Xcodeにswift-formatが見つかりません。Xcode 16以降を使用してください。\"\nfi\n\n\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		C1B7A6D02DFFAF1C00AA25D4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -333,7 +355,7 @@
 				DEVELOPMENT_TEAM = JSGGNXCXA4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -398,7 +420,7 @@
 				DEVELOPMENT_TEAM = JSGGNXCXA4;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -427,6 +449,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JSGGNXCXA4;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "swift-node-like-node-RED/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "camera image to flow";
@@ -459,6 +482,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JSGGNXCXA4;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "swift-node-like-node-RED/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "camera image to flow";
