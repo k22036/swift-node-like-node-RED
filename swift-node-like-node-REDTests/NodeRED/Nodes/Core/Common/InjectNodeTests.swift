@@ -5,56 +5,57 @@
 //  Created by k22036kk on 2025/06/16.
 //
 
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct InjectNodeTests {
-    
+
     @Test func parse() async throws {
         // パース対象のJSON文字列
         let jsonString = """
-        [
-            {
-                "id": "444f85d65fc0f212",
-                "type": "inject",
-                "z": "63886f77ebc65347",
-                "name": "",
-                "props": [
-                    {
-                        "p": "payload"
-                    },
-                    {
-                        "p": "topic",
-                        "vt": "str"
-                    }
-                ],
-                "repeat": "1",
-                "crontab": "",
-                "once": true,
-                "onceDelay": "0.5",
-                "topic": "",
-                "payload": "",
-                "payloadType": "date",
-                "x": 340,
-                "y": 160,
-                "wires": [
-                    [
-                        "2c2786ded68a1173"
+            [
+                {
+                    "id": "444f85d65fc0f212",
+                    "type": "inject",
+                    "z": "63886f77ebc65347",
+                    "name": "",
+                    "props": [
+                        {
+                            "p": "payload"
+                        },
+                        {
+                            "p": "topic",
+                            "vt": "str"
+                        }
+                    ],
+                    "repeat": "1",
+                    "crontab": "",
+                    "once": true,
+                    "onceDelay": "0.5",
+                    "topic": "",
+                    "payload": "",
+                    "payloadType": "date",
+                    "x": 340,
+                    "y": 160,
+                    "wires": [
+                        [
+                            "2c2786ded68a1173"
+                        ]
                     ]
-                ]
-            }
-        ]
-        """
-        
+                }
+            ]
+            """
+
         // JSON文字列をData型に変換
         guard let jsonData = jsonString.data(using: .utf8) else {
             fatalError("JSON文字列をDataに変換できませんでした。")
         }
-        
+
         do {
             let nodes = try JSONDecoder().decode([InjectNode].self, from: jsonData)
-            
+
             // パース結果の確認
             if let firstNode = nodes.first {
                 print("✅ パースに成功しました！")
@@ -67,16 +68,16 @@ struct InjectNodeTests {
                 #expect(firstNode.payloadType == "date")
                 print("接続先ノードID: \(firstNode.wires.first?.first ?? "なし")")
                 #expect(firstNode.wires.first?.first == "2c2786ded68a1173")
-                
+
                 print("props.count: \(firstNode.props.count)")
                 #expect(firstNode.props.count == 2)
-                
+
                 // propsの確認
                 for prop in firstNode.props {
                     print("プロパティ名: \(prop.p), 型: \(prop.vt ?? "未定義")")
                     #expect(prop.p == "payload" || prop.p == "topic")
                 }
-                
+
                 #expect(firstNode.repeat == 1.0)
                 #expect(firstNode.once == true)
                 #expect(firstNode.onceDelay == 0.5)
@@ -87,109 +88,109 @@ struct InjectNodeTests {
             throw error
         }
     }
-    
+
     @Test func execute_inject() async throws {
         // パース対象のJSON文字列
         let jsonString = """
-        [
-            {
-                "id": "22927becb75bd1f3",
-                "type": "inject",
-                "z": "357cfb731aa85c01",
-                "name": "",
-                "props": [
-                    {
-                        "p": "payload"
-                    },
-                    {
-                        "p": "topic",
-                        "vt": "str"
-                    },
-                    {
-                        "p": "test1",
-                        "v": "true",
-                        "vt": "bool"
-                    },
-                    {
-                        "p": "test2",
-                        "v": "",
-                        "vt": "num"
-                    },
-                    {
-                        "p": "test3",
-                        "v": "aa",
-                        "vt": "str"
-                    },
-                    {
-                        "p": "test4",
-                        "v": "",
-                        "vt": "date"
-                    },
-                    {
-                        "p": "test5",
-                        "v": "2",
-                        "vt": "num"
-                    }
-                ],
-                "repeat": "1",
-                "crontab": "",
-                "once": true,
-                "onceDelay": 0.1,
-                "topic": "",
-                "payload": "1",
-                "payloadType": "num",
-                "x": 210,
-                "y": 180,
-                "wires": [
-                    [
-                        "test-node",
+            [
+                {
+                    "id": "22927becb75bd1f3",
+                    "type": "inject",
+                    "z": "357cfb731aa85c01",
+                    "name": "",
+                    "props": [
+                        {
+                            "p": "payload"
+                        },
+                        {
+                            "p": "topic",
+                            "vt": "str"
+                        },
+                        {
+                            "p": "test1",
+                            "v": "true",
+                            "vt": "bool"
+                        },
+                        {
+                            "p": "test2",
+                            "v": "",
+                            "vt": "num"
+                        },
+                        {
+                            "p": "test3",
+                            "v": "aa",
+                            "vt": "str"
+                        },
+                        {
+                            "p": "test4",
+                            "v": "",
+                            "vt": "date"
+                        },
+                        {
+                            "p": "test5",
+                            "v": "2",
+                            "vt": "num"
+                        }
+                    ],
+                    "repeat": "1",
+                    "crontab": "",
+                    "once": true,
+                    "onceDelay": 0.1,
+                    "topic": "",
+                    "payload": "1",
+                    "payloadType": "num",
+                    "x": 210,
+                    "y": 180,
+                    "wires": [
+                        [
+                            "test-node",
+                        ]
                     ]
-                ]
-            }
-        ]
-        """
-        
+                }
+            ]
+            """
+
         // JSON文字列をData型に変換
         guard let jsonData = jsonString.data(using: .utf8) else {
             fatalError("JSON文字列をDataに変換できませんでした。")
         }
-        
+
         do {
             let injectNode = (try JSONDecoder().decode([InjectNode].self, from: jsonData).first)!
             let testNode = try TestNode(id: "test-node")
-            
+
             #expect(injectNode.wires.first == ["test-node"])
             print("✅ パースに成功しました！")
-            
+
             let flow = try Flow(flowJson: "[]")
             flow.addNode(injectNode)
             flow.addNode(testNode)
-            
+
             testNode.initialize(flow: flow)
             injectNode.initialize(flow: flow)
-            
+
             #expect(injectNode.isRunning == true)
-            
+
             testNode.execute()
             injectNode.execute()
-            
+
             try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
-            
+
             testNode.terminate()
             injectNode.terminate()
-            
+
             print("buffer length: \(testNode.buffer.count)")
             #expect(testNode.buffer.count > 0)
-            
-            testNode.buffer.forEach() { msg in
+
+            for msg in testNode.buffer {
                 print("ペイロード: \(msg.payload)")
                 #expect(msg.payload is Int)
                 #expect(msg.payload as? Int == 1)
-                
+
                 print("props: \(msg.properties)")
                 print("props.count: \(msg.properties.count)")
                 #expect(msg.properties.count == 5)
-                
+
                 for prop in msg.properties {
                     switch prop.key {
                     case "topic":

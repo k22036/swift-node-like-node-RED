@@ -1,25 +1,26 @@
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct DirectionNodeTests {
     @Test func parse() async throws {
         let jsonString = """
-        [
-            {
-                "id": "direction1",
-                "type": "direction",
-                "z": "test-z",
-                "name": "direction test",
-                "repeat": "2.0",
-                "once": true,
-                "onceDelay": "0.2",
-                "x": 15,
-                "y": 25,
-                "wires": [["node2"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "direction1",
+                    "type": "direction",
+                    "z": "test-z",
+                    "name": "direction test",
+                    "repeat": "2.0",
+                    "once": true,
+                    "onceDelay": "0.2",
+                    "x": 15,
+                    "y": 25,
+                    "wires": [["node2"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -39,21 +40,21 @@ struct DirectionNodeTests {
 
     @Test func simulateDirection() async throws {
         let jsonString = """
-        [
-            {
-                "id": "direction2",
-                "type": "direction",
-                "z": "test-z",
-                "name": "",
-                "repeat": "",
-                "once": false,
-                "onceDelay": 0,
-                "x": 0,
-                "y": 0,
-                "wires": [["test-node"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "direction2",
+                    "type": "direction",
+                    "z": "test-z",
+                    "name": "",
+                    "repeat": "",
+                    "once": false,
+                    "onceDelay": 0,
+                    "x": 0,
+                    "y": 0,
+                    "wires": [["test-node"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -77,4 +78,3 @@ struct DirectionNodeTests {
         }
     }
 }
-

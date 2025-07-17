@@ -5,8 +5,8 @@
 //  Created by k22036kk on 2025/06/16.
 //
 
-import SwiftUI
 import AVFoundation
+import SwiftUI
 import UIKit
 
 struct ContentView: View {
@@ -28,7 +28,9 @@ struct ContentView: View {
                         ToolbarItemGroup(placement: .keyboard) {
                             Spacer()
                             Button("Done") {
-                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                UIApplication.shared.sendAction(
+                                    #selector(UIResponder.resignFirstResponder), to: nil, from: nil,
+                                    for: nil)
                             }
                         }
                     }
@@ -79,7 +81,7 @@ struct ContentView: View {
         }
         isRunning = false
     }
-    
+
     /// Configとフローをクリアする
     private func clearFlow() {
         flowJson = ""

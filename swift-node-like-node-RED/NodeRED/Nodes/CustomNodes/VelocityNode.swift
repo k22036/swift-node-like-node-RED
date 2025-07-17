@@ -1,5 +1,5 @@
-import Foundation
 import CoreLocation
+import Foundation
 
 /// Custom node that retrieves and sends device velocity information
 final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
@@ -13,59 +13,64 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     private let x: Int
     private let y: Int
     let wires: [[String]]
-    
+
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
-        
+
         let _type = try container.decode(String.self, forKey: .type)
         guard _type == NodeType.velocity.rawValue else {
-            throw DecodingError.dataCorruptedError(forKey: .type, in: container,
-                                                   debugDescription: "Expected type to be 'velocity', but found \(_type)")
+            throw DecodingError.dataCorruptedError(
+                forKey: .type, in: container,
+                debugDescription: "Expected type to be 'velocity', but found \(_type)")
         }
         self.type = _type
-        
+
         self.z = try container.decode(String.self, forKey: .z)
         self.name = try container.decode(String.self, forKey: .name)
-        
-        if let repeatValStr = try? container.decode(String.self, forKey: .repeat), let val = Double(repeatValStr) {
+
+        if let repeatValStr = try? container.decode(String.self, forKey: .repeat),
+            let val = Double(repeatValStr)
+        {
             self.`repeat` = val
         } else if let val = try? container.decode(Double.self, forKey: .repeat) {
             self.`repeat` = val
         } else {
             self.`repeat` = nil
         }
-        
+
         self.once = try container.decode(Bool.self, forKey: .once)
-        
-        if let delayStr = try? container.decode(String.self, forKey: .onceDelay), let val = Double(delayStr) {
+
+        if let delayStr = try? container.decode(String.self, forKey: .onceDelay),
+            let val = Double(delayStr)
+        {
             self.onceDelay = val
         } else if let val = try? container.decode(Double.self, forKey: .onceDelay) {
             self.onceDelay = val
         } else {
             self.onceDelay = 0
         }
-        
+
         self.x = try container.decode(Int.self, forKey: .x)
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
-    
+
     private enum CodingKeys: String, CodingKey {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
-    
+
     var locationManager: CLLocationManager = CLLocationManager()
     weak var flow: Flow?
     var isRunning: Bool = false
     private var lastSentTime: Date?
-    
+
     deinit {
         isRunning = false
         locationManager.stopUpdatingLocation()
         locationManager.delegate = nil
     }
-    
+
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
@@ -74,7 +79,7 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         locationManager.distanceFilter = kCLDistanceFilterNone
     }
-    
+
     func execute() {
         Task {
             if once {
@@ -94,25 +99,25 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
             }
         }
     }
-    
+
     func terminate() {
         isRunning = false
         locationManager.stopUpdatingLocation()
     }
-    
+
     func receive(msg: NodeMessage) {
         // This node does not process incoming messages
     }
-    
+
     func send(msg: NodeMessage) {
         flow?.routeMessage(from: self, message: msg)
     }
-    
+
     private func requestVelocity() {
         guard CLLocationManager.locationServicesEnabled() else { return }
         locationManager.startUpdatingLocation()
     }
-    
+
     // CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard isRunning, let location = locations.last, location.speed >= 0 else { return }
@@ -121,19 +126,19 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
             return
         }
         let payload: [String: Double] = [
-            "velocity": location.speed // m/s
+            "velocity": location.speed  // m/s
         ]
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
         self.lastSentTime = Date()
-//        locationManager.stopUpdatingLocation()
+        //        locationManager.stopUpdatingLocation()
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         // Optionally handle error
         print("Failed to get velocity: \(error.localizedDescription)")
     }
-    
+
     /// For testing: simulate a velocity update
     func simulateVelocity(_ velocity: Double) {
         let payload: [String: Double] = ["velocity": velocity]

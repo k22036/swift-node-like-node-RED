@@ -1,25 +1,26 @@
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct AttitudeNodeTests {
     @Test func parse() async throws {
         let jsonString = """
-        [
-            {
-                "id": "att1",
-                "type": "attitude",
-                "z": "test-z",
-                "name": "att test",
-                "repeat": "1.5",
-                "once": true,
-                "onceDelay": "0.1",
-                "x": 10,
-                "y": 20,
-                "wires": [["node2"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "att1",
+                    "type": "attitude",
+                    "z": "test-z",
+                    "name": "att test",
+                    "repeat": "1.5",
+                    "once": true,
+                    "onceDelay": "0.1",
+                    "x": 10,
+                    "y": 20,
+                    "wires": [["node2"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -39,21 +40,21 @@ struct AttitudeNodeTests {
 
     @Test func simulateAttitude() async throws {
         let jsonString = """
-        [
-            {
-                "id": "att2",
-                "type": "attitude",
-                "z": "test-z",
-                "name": "",
-                "repeat": "",
-                "once": false,
-                "onceDelay": 0,
-                "x": 0,
-                "y": 0,
-                "wires": [["test-node"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "att2",
+                    "type": "attitude",
+                    "z": "test-z",
+                    "name": "",
+                    "repeat": "",
+                    "once": false,
+                    "onceDelay": 0,
+                    "x": 0,
+                    "y": 0,
+                    "wires": [["test-node"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }

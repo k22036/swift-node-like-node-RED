@@ -1,7 +1,7 @@
+import AVFoundation
+import CoreImage
 import Foundation
 import UIKit
-import CoreImage
-import AVFoundation
 
 /// Custom node that captures images from the device camera and sends them as base64 strings
 final class CameraNode: NSObject, Codable, Node {
@@ -34,15 +34,18 @@ final class CameraNode: NSObject, Codable, Node {
 
         let _type = try container.decode(String.self, forKey: .type)
         guard _type == NodeType.camera.rawValue else {
-            throw DecodingError.dataCorruptedError(forKey: .type, in: container,
-                                                   debugDescription: "Expected type to be 'camera', but found \(_type)")
+            throw DecodingError.dataCorruptedError(
+                forKey: .type, in: container,
+                debugDescription: "Expected type to be 'camera', but found \(_type)")
         }
         self.type = _type
 
         self.z = try container.decode(String.self, forKey: .z)
         self.name = try container.decode(String.self, forKey: .name)
 
-        if let repeatValStr = try? container.decode(String.self, forKey: .repeat), let val = Double(repeatValStr) {
+        if let repeatValStr = try? container.decode(String.self, forKey: .repeat),
+            let val = Double(repeatValStr)
+        {
             self.`repeat` = val
         } else if let val = try? container.decode(Double.self, forKey: .repeat) {
             self.`repeat` = val
@@ -51,7 +54,9 @@ final class CameraNode: NSObject, Codable, Node {
         }
 
         self.once = try container.decode(Bool.self, forKey: .once)
-        if let delayStr = try? container.decode(String.self, forKey: .onceDelay), let val = Double(delayStr) {
+        if let delayStr = try? container.decode(String.self, forKey: .onceDelay),
+            let val = Double(delayStr)
+        {
             self.onceDelay = val
         } else if let val = try? container.decode(Double.self, forKey: .onceDelay) {
             self.onceDelay = val
@@ -77,12 +82,15 @@ final class CameraNode: NSObject, Codable, Node {
     private func setupSession() {
         guard let device = AVCaptureDevice.default(for: .video) else { return }
         captureSession.beginConfiguration()
-        if let deviceInput = try? AVCaptureDeviceInput(device: device), captureSession.canAddInput(deviceInput) {
+        if let deviceInput = try? AVCaptureDeviceInput(device: device),
+            captureSession.canAddInput(deviceInput)
+        {
             captureSession.addInput(deviceInput)
         }
         videoOutput.alwaysDiscardsLateVideoFrames = true
         if captureSession.canAddOutput(videoOutput) {
-            videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "CameraNodeVideoQueue"))
+            videoOutput.setSampleBufferDelegate(
+                self, queue: DispatchQueue(label: "CameraNodeVideoQueue"))
             captureSession.addOutput(videoOutput)
         }
         captureSession.commitConfiguration()
@@ -130,17 +138,20 @@ final class CameraNode: NSObject, Codable, Node {
 }
 
 extension CameraNode: AVCaptureVideoDataOutputSampleBufferDelegate {
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    func captureOutput(
+        _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
         guard isRunning && shouldCaptureFrame else { return }
         shouldCaptureFrame = false
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        
+
         var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        
+
         // Get current device orientation and rotate the image
         let orientation = UIDevice.current.orientation
         let rotation: CGAffineTransform
-        
+
         switch orientation {
         case .portrait:
             rotation = CGAffineTransform(rotationAngle: -(.pi / 2))
@@ -155,7 +166,7 @@ extension CameraNode: AVCaptureVideoDataOutputSampleBufferDelegate {
             rotation = CGAffineTransform(rotationAngle: -(.pi / 2))
         }
         ciImage = ciImage.transformed(by: rotation)
-        
+
         // Use the shared context instead of creating a new one each time
         let context = ciContext
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }

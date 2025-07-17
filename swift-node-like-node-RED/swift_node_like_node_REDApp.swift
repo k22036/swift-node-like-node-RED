@@ -5,11 +5,11 @@
 //  Created by k22036kk on 2025/06/16.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
-struct swift_node_like_node_REDApp: App {
+struct Swift_node_like_node_REDApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

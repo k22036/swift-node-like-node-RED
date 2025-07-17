@@ -23,17 +23,19 @@ final class DebugNode: Codable, Node {
     private let x: Int
     private let y: Int
     let wires: [[String]]
-    
+
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
-        
+
         let _type = try container.decode(String.self, forKey: .type)
         guard _type == NodeType.debug.rawValue else {
-            throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Expected type to be 'debug', but found \(_type)")
+            throw DecodingError.dataCorruptedError(
+                forKey: .type, in: container,
+                debugDescription: "Expected type to be 'debug', but found \(_type)")
         }
         self.type = _type
-        
+
         self.z = try container.decode(String.self, forKey: .z)
         self.name = try container.decode(String.self, forKey: .name)
         self.active = try container.decode(Bool.self, forKey: .active)
@@ -48,11 +50,13 @@ final class DebugNode: Codable, Node {
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
-    
-    private enum CodingKeys: String, CodingKey { // Coding keys for decoding
-        case id, type, z, name, active, tosidebar, console, tostatus, complete, targetType, statusVal, statusType, x, y, wires
+
+    private enum CodingKeys: String, CodingKey {  // Coding keys for decoding
+        case id, type, z, name, active, tosidebar, console, tostatus, complete, targetType,
+            statusVal,
+            statusType, x, y, wires
     }
-    
+
     weak var flow: Flow?
     var isRunning: Bool = false
     // AsyncStream continuation for event-driven message delivery
@@ -92,7 +96,6 @@ final class DebugNode: Codable, Node {
 
     func send(msg: NodeMessage) {}
 
-
     /// 指定されたフォーマットでノードのデバッグメッセージをコンソールに出力
     /// - Parameters:
     ///   - nodeName: ログを出力するノードの名前 (例: "debug 2")
@@ -116,17 +119,17 @@ final class DebugNode: Codable, Node {
             payloadValue = "\"\(string)\""
         default:
             // その他の型の場合
-            payloadType = "\(Swift.type(of: msg.payload))" // 型名をそのまま表示
+            payloadType = "\(Swift.type(of: msg.payload))"  // 型名をそのまま表示
             payloadValue = "\(msg.payload)"
         }
-        
+
         // 3. ログメッセージを組み立てて出力
         print("\(timestamp) ノード: \(self.name)")
         print("msg.payload : \(payloadType)")
         print(payloadValue)
-        print("----------------------------------------") // ログの区切り線
+        print("----------------------------------------")  // ログの区切り線
     }
-    
+
     /// Shared DateFormatter for log timestamps
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()

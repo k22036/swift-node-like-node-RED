@@ -1,25 +1,26 @@
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct AccelerometerNodeTests {
     @Test func parse() async throws {
         let jsonString = """
-        [
-            {
-                "id": "accel1",
-                "type": "accelerometer",
-                "z": "test-z",
-                "name": "accel test",
-                "repeat": "2.5",
-                "once": true,
-                "onceDelay": "0.2",
-                "x": 11,
-                "y": 22,
-                "wires": [["node2"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "accel1",
+                    "type": "accelerometer",
+                    "z": "test-z",
+                    "name": "accel test",
+                    "repeat": "2.5",
+                    "once": true,
+                    "onceDelay": "0.2",
+                    "x": 11,
+                    "y": 22,
+                    "wires": [["node2"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -39,21 +40,21 @@ struct AccelerometerNodeTests {
 
     @Test func simulateAccelerometer() async throws {
         let jsonString = """
-        [
-            {
-                "id": "accel2",
-                "type": "accelerometer",
-                "z": "test-z",
-                "name": "",
-                "repeat": "",
-                "once": false,
-                "onceDelay": 0,
-                "x": 0,
-                "y": 0,
-                "wires": [["test-node"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "accel2",
+                    "type": "accelerometer",
+                    "z": "test-z",
+                    "name": "",
+                    "repeat": "",
+                    "once": false,
+                    "onceDelay": 0,
+                    "x": 0,
+                    "y": 0,
+                    "wires": [["test-node"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -79,4 +80,3 @@ struct AccelerometerNodeTests {
         }
     }
 }
-

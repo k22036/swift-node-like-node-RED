@@ -1,25 +1,26 @@
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct PressureNodeTests {
     @Test func parse() async throws {
         let jsonString = """
-        [
-            {
-                "id": "prs1",
-                "type": "pressure",
-                "z": "test-z",
-                "name": "prs test",
-                "repeat": "1.0",
-                "once": true,
-                "onceDelay": "0.1",
-                "x": 10,
-                "y": 20,
-                "wires": [["node2"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "prs1",
+                    "type": "pressure",
+                    "z": "test-z",
+                    "name": "prs test",
+                    "repeat": "1.0",
+                    "once": true,
+                    "onceDelay": "0.1",
+                    "x": 10,
+                    "y": 20,
+                    "wires": [["node2"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -39,21 +40,21 @@ struct PressureNodeTests {
 
     @Test func simulatePressure() async throws {
         let jsonString = """
-        [
-            {
-                "id": "prs2",
-                "type": "pressure",
-                "z": "test-z",
-                "name": "",
-                "repeat": "",
-                "once": false,
-                "onceDelay": 0,
-                "x": 0,
-                "y": 0,
-                "wires": [["test-node"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "prs2",
+                    "type": "pressure",
+                    "z": "test-z",
+                    "name": "",
+                    "repeat": "",
+                    "once": false,
+                    "onceDelay": 0,
+                    "x": 0,
+                    "y": 0,
+                    "wires": [["test-node"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -77,4 +78,3 @@ struct PressureNodeTests {
         }
     }
 }
-

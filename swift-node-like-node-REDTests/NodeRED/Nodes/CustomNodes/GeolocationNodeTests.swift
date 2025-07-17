@@ -5,28 +5,29 @@
 //  Created by k22036kk on 2025/06/21.
 //
 
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct GeolocationNodeTests {
     @Test func parse() async throws {
         let jsonString = """
-        [
-            {
-                "id": "geo1",
-                "type": "geolocation",
-                "z": "test-z",
-                "name": "geo test",
-                "repeat": "5",
-                "once": true,
-                "onceDelay": "0.3",
-                "x": 10,
-                "y": 20,
-                "wires": [["node1"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "geo1",
+                    "type": "geolocation",
+                    "z": "test-z",
+                    "name": "geo test",
+                    "repeat": "5",
+                    "once": true,
+                    "onceDelay": "0.3",
+                    "x": 10,
+                    "y": 20,
+                    "wires": [["node1"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -47,21 +48,21 @@ struct GeolocationNodeTests {
     @Test func simulateLocation() async throws {
         // Create node and test target
         let jsonString = """
-        [
-            {
-                "id": "geo2",
-                "type": "geolocation",
-                "z": "test-z",
-                "name": "",
-                "repeat": "",
-                "once": false,
-                "onceDelay": 0,
-                "x": 0,
-                "y": 0,
-                "wires": [["test-node"]]
-            }
-        ]
-        """
+            [
+                {
+                    "id": "geo2",
+                    "type": "geolocation",
+                    "z": "test-z",
+                    "name": "",
+                    "repeat": "",
+                    "once": false,
+                    "onceDelay": 0,
+                    "x": 0,
+                    "y": 0,
+                    "wires": [["test-node"]]
+                }
+            ]
+            """
         guard let data = jsonString.data(using: .utf8) else {
             fatalError("Failed to convert JSON string to Data")
         }
@@ -79,7 +80,7 @@ struct GeolocationNodeTests {
 
         // Allow asynchronous send
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
-        
+
         node.terminate()
 
         #expect(testNode.buffer.count == 1)

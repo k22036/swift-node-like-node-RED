@@ -31,6 +31,23 @@ jobs:
       - name: Select Xcode version
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
+      # Swift format
+      - name: Ensure swift-format.sh is executable
+        run: chmod +x ./scripts/swift-format.sh
+
+      - name: Format code
+        run: ./scripts/swift-format.sh
+        shell: sh
+
+      # Swift lint
+      - name: Ensure swift-lint.sh is executable
+        run: chmod +x ./scripts/swift-lint.sh
+
+      - name: Lint code
+        run: ./scripts/swift-lint.sh
+        shell: sh
+
+      # Build and test
       - name: Build and test
         run: |
           xcodebuild test \

@@ -5,9 +5,10 @@
 //  Created by k22036kk on 2025/06/21.
 //
 
-import Testing
-@testable import swift_node_like_node_RED
 import Foundation
+import Testing
+
+@testable import swift_node_like_node_RED
 
 struct FlowTests {
     let flowJson = """
@@ -108,11 +109,11 @@ struct FlowTests {
         do {
             let flow = try Flow(flowJson: flowJson)
             print("✅ フローの初期化に成功しました！")
-            
+
             #expect(flow.getNode(by: "f0bd46d65aaae42b") != nil)
             #expect(flow.getNode(by: "22927becb75bd1f3") != nil)
             #expect(flow.getNode(by: "4df62d3e39f09ef1") != nil)
-            
+
             #expect(flow.getNode(by: "f0bd46d65aaae42b") is DebugNode)
             #expect(flow.getNode(by: "22927becb75bd1f3") is InjectNode)
             #expect(flow.getNode(by: "4df62d3e39f09ef1") is DebugNode)
@@ -122,28 +123,28 @@ struct FlowTests {
             throw error
         }
     }
-    
+
     @Test func start_flow() async throws {
         let flow = try Flow(flowJson: flowJson)
         print("✅ フローの初期化に成功しました！")
-        
+
         flow.start()
         #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
         #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
         #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
     }
-    
+
     @Test func stop_flow() async throws {
         let flow = try Flow(flowJson: flowJson)
         print("✅ フローの初期化に成功しました！")
-        
+
         flow.start()
         #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
         #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
         #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
-        
-        try await Task.sleep(nanoseconds: 2 * 1_000_000_000) // 1秒待機
-        
+
+        try await Task.sleep(nanoseconds: 2 * 1_000_000_000)  // 1秒待機
+
         flow.stop()
         #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
         #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
