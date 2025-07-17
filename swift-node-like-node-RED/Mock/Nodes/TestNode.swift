@@ -16,44 +16,44 @@ import DequeModule
 import Foundation
 
 final class TestNode: Codable, Node {
-  let id: String
-  let type: String
-  let z: String
-  let wires: [[String]]
+    let id: String
+    let type: String
+    let z: String
+    let wires: [[String]]
 
-  required init(id: String) throws {
-    self.id = id
-    self.type = "test"
-    self.wires = []
-    self.z = "test-z"
-  }
+    required init(id: String) throws {
+        self.id = id
+        self.type = "test"
+        self.wires = []
+        self.z = "test-z"
+    }
 
-  enum CodingKeys: String, CodingKey {  // Coding keys for decoding
-    case id, type, z, wires
-  }
+    enum CodingKeys: String, CodingKey {  // Coding keys for decoding
+        case id, type, z, wires
+    }
 
-  weak var flow: Flow?
-  var isRunning: Bool = false
-  var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
+    weak var flow: Flow?
+    var isRunning: Bool = false
+    var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
 
-  deinit {
-    isRunning = false
-  }
+    deinit {
+        isRunning = false
+    }
 
-  func initialize(flow: Flow) {
-    self.flow = flow
-    isRunning = true
-  }
+    func initialize(flow: Flow) {
+        self.flow = flow
+        isRunning = true
+    }
 
-  func execute() {}
+    func execute() {}
 
-  func terminate() {
-    isRunning = false
-  }
+    func terminate() {
+        isRunning = false
+    }
 
-  func receive(msg: NodeMessage) {
-    buffer.append(msg)
-  }
+    func receive(msg: NodeMessage) {
+        buffer.append(msg)
+    }
 
-  func send(msg: NodeMessage) {}
+    func send(msg: NodeMessage) {}
 }

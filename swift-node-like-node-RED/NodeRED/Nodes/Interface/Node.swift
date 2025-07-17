@@ -6,20 +6,20 @@
 //
 
 protocol Node {
-  var id: String { get }
-  var type: String { get }
-  var z: String { get }
-  var wires: [[String]] { get }
+    var id: String { get }
+    var type: String { get }
+    var z: String { get }
+    var wires: [[String]] { get }
 
-  init(from decoder: any Decoder) throws
+    init(from decoder: any Decoder) throws
 
-  var flow: Flow? { get }  // must weak to avoid retain cycles
-  var isRunning: Bool { get }
+    var flow: Flow? { get }  // must weak to avoid retain cycles
+    var isRunning: Bool { get }
 
-  func initialize(flow: Flow)
-  func execute()
-  func terminate()
+    func initialize(flow: Flow)
+    func execute()
+    func terminate()
 
-  func receive(msg: NodeMessage)
-  func send(msg: NodeMessage)
+    func receive(msg: NodeMessage)
+    func send(msg: NodeMessage)
 }

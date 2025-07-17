@@ -10,9 +10,9 @@ import SwiftUI
 
 @main
 struct swift_node_like_node_REDApp: App {
-  var body: some Scene {
-    WindowGroup {
-      ContentView()
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
     }
-  }
 }
