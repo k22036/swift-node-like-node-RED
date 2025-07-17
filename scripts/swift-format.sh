@@ -3,6 +3,8 @@ set -e
 
 # フォーマットしたいフォルダを指定
 TARGET_DIR="${SRCROOT:-.}"
+# swift-formatの設定ファイルを指定
+config_file="$TARGET_DIR/.swift-format"
 
 # swift-format が存在するか
 if ! xcrun --find swift-format >/dev/null; then
@@ -17,7 +19,7 @@ if [ -n "$GITHUB_ACTIONS" ]; then
 
     exit_code=0
     while IFS= read -r file; do
-        if diff_output=$(diff -u "$file" <(xcrun swift-format format "$file")); then
+        if diff_output=$(diff -u "$file" <(xcrun swift-format format "$file" --configuration "$config_file")); then
             continue
         else
             echo "Difference found in $file:"
@@ -34,6 +36,6 @@ if [ -n "$GITHUB_ACTIONS" ]; then
     fi
 else
     # ローカルでは in-place フォーマットを実行
-    xcrun swift-format format --in-place --recursive "$TARGET_DIR"
+    xcrun swift-format format --in-place --recursive "$TARGET_DIR" --configuration "$config_file"
     echo "Swift files in '$TARGET_DIR' have been formatted successfully."
 fi
