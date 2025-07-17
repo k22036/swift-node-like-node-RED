@@ -275,7 +275,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n# フォーマットしたいフォルダを指定\nTARGET_DIR=\"$SRCROOT\"\n\n# Xcode内蔵のswift-formatを使用してフォーマットを実行\nif xcrun --find swift-format >/dev/null; then\n  xcrun swift-format format --in-place --recursive \"$TARGET_DIR\"\nelse\n  echo \"warning: Xcodeにswift-formatが見つかりません。Xcode 16以降を使用してください。\"\nfi\n\n\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\n$SOURCE_ROOT/script/swift-fomat.sh\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
