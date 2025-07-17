@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# フォーマットしたいフォルダを指定
+# lintしたいフォルダを指定
 TARGET_DIR="${SRCROOT:-.}"
 
 # swift-format が存在するか
@@ -10,11 +10,12 @@ if ! xcrun --find swift-format >/dev/null; then
     exit 1
 fi
 
-# xcrun swift-format lint --recursive "$TARGET_DIR"
+# lintの実行
 if output=$(xcrun swift-format lint --recursive "$TARGET_DIR"); then
-    echo "Formatting issues found:"
+    echo "No lint issues found."
+    exit 0
+else
+    echo "Lint issues found:"
     echo "$output"
     exit 1
-else
-    echo "No formatting issues found."
 fi
