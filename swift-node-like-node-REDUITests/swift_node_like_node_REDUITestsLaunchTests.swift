@@ -22,8 +22,16 @@ final class Swift_node_like_node_REDUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
+        // Automatically allow location permission dialog if it appears
+        addUIInterruptionMonitor(withDescription: "Location Permission") { alert in
+            let allowButton = alert.buttons["Allow While Using App"]
+            if allowButton.exists {
+                allowButton.tap()
+                return true
+            }
+            return false
+        }
+        app.tap()  // Tap the screen to trigger dialog detection
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"
