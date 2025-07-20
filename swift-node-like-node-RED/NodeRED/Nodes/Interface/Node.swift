@@ -18,7 +18,7 @@ protocol Node {
 
     func initialize(flow: Flow)
     func execute()
-    func terminate()
+    func terminate() async
 
     func receive(msg: NodeMessage)
     func send(msg: NodeMessage)

@@ -63,13 +63,8 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     var locationManager: CLLocationManager = CLLocationManager()
     weak var flow: Flow?
     var isRunning: Bool = false
+    private var currentTask: Task<Void, Never>?
     private var lastSentTime: Date?
-
-    deinit {
-        isRunning = false
-        locationManager.stopUpdatingLocation()
-        locationManager.delegate = nil
-    }
 
     func initialize(flow: Flow) {
         self.flow = flow
@@ -81,28 +76,59 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     func execute() {
-        Task {
-            if once {
-                if onceDelay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+        // Prevent multiple concurrent executions
+        if let task = currentTask, !task.isCancelled {
+            print("VelocityNode: Already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                if once {
+                    if onceDelay > 0 {
+                        try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                    }
+                    if !isRunning { return }
+                    requestVelocity()
                 }
-                if !isRunning { return }
-                requestVelocity()
-            }
-            guard let interval = `repeat`, interval > 0 else {
+                guard let interval = `repeat`, interval > 0 else {
+                    return
+                }
+                while isRunning {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    if !isRunning { return }
+                    requestVelocity()
+                }
+            } catch is CancellationError {
+                // Task was cancelled, do nothing
                 return
-            }
-            while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
-                if !isRunning { return }
-                requestVelocity()
+            } catch {
+                print("VelocityNode execution error: \(error)")
+                isRunning = false
+                locationManager.stopUpdatingLocation()
+                locationManager.delegate = nil
             }
         }
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
         locationManager.stopUpdatingLocation()
+
+        if let task = currentTask {
+            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
+        }
+        currentTask = nil
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
+        locationManager.stopUpdatingLocation()
+        locationManager.delegate = nil
     }
 
     func receive(msg: NodeMessage) {

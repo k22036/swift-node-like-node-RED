@@ -98,7 +98,7 @@ struct DebugNodeTests {
 
             // 0.5秒待機
             try await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
-            debugNode.terminate()
+            await debugNode.terminate()
             #expect(debugNode.isRunning == false)
         } catch {
             // パースに失敗した場合のエラーハンドリング

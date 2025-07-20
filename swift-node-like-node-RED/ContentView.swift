@@ -43,8 +43,10 @@ struct ContentView: View {
                     }
                     .disabled(flow == nil || isRunning)
                     Button("Stop") {
-                        flow?.stop()
-                        isRunning = false
+                        Task {
+                            await flow?.stop()
+                            isRunning = false
+                        }
                     }
                     .disabled(!isRunning)
                     Button("Clear Config") {

@@ -16,18 +16,6 @@ final class CameraNode: NSObject, Codable, Node {
     private let y: Int
     let wires: [[String]]
 
-    // Camera capture properties
-    private let captureSession = AVCaptureSession()
-    private let videoOutput = AVCaptureVideoDataOutput()
-    private var shouldCaptureFrame = false  // flag to capture next frame
-    /// Expose capture session for preview
-    var session: AVCaptureSession { captureSession }
-    weak var flow: Flow?
-    var isRunning: Bool = false
-
-    // Add a shared CIContext to reuse for image conversion
-    private lazy var ciContext = CIContext()
-
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
@@ -73,6 +61,19 @@ final class CameraNode: NSObject, Codable, Node {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
+    // Camera capture properties
+    private let captureSession = AVCaptureSession()
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private var shouldCaptureFrame = false  // flag to capture next frame
+    /// Expose capture session for preview
+    var session: AVCaptureSession { captureSession }
+    weak var flow: Flow?
+    var isRunning: Bool = false
+    private var currentTask: Task<Void, Never>?
+
+    // Add a shared CIContext to reuse for image conversion
+    private lazy var ciContext = CIContext()
+
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
@@ -100,22 +101,37 @@ final class CameraNode: NSObject, Codable, Node {
     }
 
     func execute() {
-        Task {
-            if once {
-                if onceDelay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+        // Prevent multiple executions
+        if let task = currentTask, !task.isCancelled {
+            print("CameraNode: Already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                if once {
+                    if onceDelay > 0 {
+                        try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                    }
+                    if !isRunning { return }
+                    capturePhoto()
                 }
-                if !isRunning { return }
-                capturePhoto()
-            }
-            guard let interval = `repeat`, interval > 0 else {
+                guard let interval = `repeat`, interval > 0 else {
+                    return
+                }
+                while isRunning {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    if !isRunning { return }
+                    capturePhoto()
+                }
+            } catch is CancellationError {
                 return
+            } catch {
+                print("CameraNode execution error: \(error)")
             }
-            while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
-                if !isRunning { return }
-                capturePhoto()
-            }
+
         }
     }
 
@@ -123,8 +139,20 @@ final class CameraNode: NSObject, Codable, Node {
         shouldCaptureFrame = true
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+        captureSession.stopRunning()
+
+        if let task = currentTask {
+            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
+        }
+        currentTask = nil
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
         captureSession.stopRunning()
     }
 

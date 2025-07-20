@@ -124,8 +124,8 @@ struct Inject_Debug_Tests {
 
             try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
 
-            debugNode.terminate()
-            injectNode.terminate()
+            await debugNode.terminate()
+            await injectNode.terminate()
         } catch {
             // パースに失敗した場合のエラーハンドリング
             print("❌ パースに失敗しました: \(error)")

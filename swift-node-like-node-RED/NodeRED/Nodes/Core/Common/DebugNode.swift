@@ -59,6 +59,8 @@ final class DebugNode: Codable, Node {
 
     weak var flow: Flow?
     var isRunning: Bool = false
+    private var currentTask: Task<Void, Never>?
+
     // AsyncStream continuation for event-driven message delivery
     private var messageContinuation: AsyncStream<NodeMessage>.Continuation?
     // AsyncStream for incoming messages
@@ -66,17 +68,24 @@ final class DebugNode: Codable, Node {
         self.messageContinuation = continuation
     }
 
-    deinit {
-        isRunning = false
-    }
-
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
+
+        messageStream = AsyncStream { continuation in
+            messageContinuation = continuation
+        }
     }
 
     func execute() {
-        Task {
+        // Prevent multiple executions
+        if let task = currentTask, !task.isCancelled {
+            print("DebugNode: Already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
             // Process messages as they arrive
             for await msg in messageStream where isRunning {
                 logNodeMessage(msg: msg)
@@ -84,8 +93,21 @@ final class DebugNode: Codable, Node {
         }
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+
+        if let task = currentTask {
+            _ = await task.value  // Wait for the task to complete
+        }
+        currentTask = nil
+        messageContinuation?.finish()  // Signal the end of the stream
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
+        messageContinuation?.finish()
     }
 
     func receive(msg: NodeMessage) {

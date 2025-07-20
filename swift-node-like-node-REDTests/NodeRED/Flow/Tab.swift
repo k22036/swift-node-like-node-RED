@@ -240,7 +240,7 @@ struct TabTests {
         #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
         #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
         #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
-        flow.stop()
+        await flow.stop()
     }
 
     @Test func disable_flow() async throws {
@@ -353,6 +353,6 @@ struct TabTests {
         #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
         #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
         #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)
-        flow.stop()
+        await flow.stop()
     }
 }
