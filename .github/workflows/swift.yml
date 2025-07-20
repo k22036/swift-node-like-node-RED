@@ -54,6 +54,7 @@ jobs:
         run: |
           xcodebuild test \
             -scheme swift-node-like-node-RED \
+            -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath .build \
             -skipPackageSignatureValidation \
@@ -61,7 +62,8 @@ jobs:
             -parallel-testing-worker-count 2 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS=""
 
       - name: Upload test results
         if: always()
