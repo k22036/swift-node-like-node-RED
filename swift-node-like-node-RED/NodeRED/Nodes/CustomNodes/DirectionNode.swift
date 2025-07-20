@@ -15,10 +15,6 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     private let y: Int
     let wires: [[String]]
 
-    private var locationManager: CLLocationManager?
-    weak var flow: Flow?
-    var isRunning: Bool = false
-
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
@@ -59,9 +55,10 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
-    deinit {
-        terminate()
-    }
+    private var locationManager: CLLocationManager?
+    weak var flow: Flow?
+    private var currentTask: Task<Void, Never>?
+    var isRunning: Bool = false
 
     func initialize(flow: Flow) {
         self.flow = flow
@@ -73,21 +70,40 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     func execute() {
-        Task {
-            if once {
-                if onceDelay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+        // Prevent multiple concurrent executions
+        if let task = currentTask, !task.isCancelled {
+            print("DirectionNode: already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                if once {
+                    if onceDelay > 0 {
+                        try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                    }
+                    if !isRunning { return }
+                    requestDirection()
                 }
-                if !isRunning { return }
-                requestDirection()
-            }
-            guard let interval = `repeat`, interval > 0 else {
+                guard let interval = `repeat`, interval > 0 else {
+                    return
+                }
+                while isRunning {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    if !isRunning { return }
+                    requestDirection()
+                }
+            } catch is CancellationError {
+                // Task was cancelled, do nothing
                 return
-            }
-            while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
-                if !isRunning { return }
-                requestDirection()
+            } catch {
+                print("DirectionNode execution error: \(error)")
+                isRunning = false
+                locationManager?.stopUpdatingHeading()
+                locationManager = nil
+                return
             }
         }
     }
@@ -97,8 +113,21 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         locationManager?.startUpdatingHeading()
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+        locationManager?.stopUpdatingHeading()
+        locationManager = nil
+
+        if let task = currentTask {
+            _ = await task.value  // Wait for the task to complete
+        }
+        currentTask = nil
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
         locationManager?.stopUpdatingHeading()
         locationManager = nil
     }

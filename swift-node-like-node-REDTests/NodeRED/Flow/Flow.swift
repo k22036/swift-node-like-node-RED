@@ -145,7 +145,7 @@ struct FlowTests {
 
         try await Task.sleep(nanoseconds: 2 * 1_000_000_000)  // 1秒待機
 
-        flow.stop()
+        await flow.stop()
         #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
         #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
         #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)

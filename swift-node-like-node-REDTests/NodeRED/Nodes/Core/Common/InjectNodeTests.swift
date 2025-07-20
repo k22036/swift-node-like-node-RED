@@ -177,7 +177,7 @@ struct InjectNodeTests {
             try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
 
             testNode.terminate()
-            injectNode.terminate()
+            await injectNode.terminate()
 
             print("buffer length: \(testNode.buffer.count)")
             #expect(testNode.buffer.count > 0)

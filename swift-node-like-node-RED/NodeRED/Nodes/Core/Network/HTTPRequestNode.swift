@@ -63,6 +63,7 @@ final class HTTPRequestNode: Codable, Node {
 
     weak var flow: Flow?
     var isRunning: Bool = false
+    private var currentTask: Task<Void, Never>?
 
     // AsyncStream continuation for event-driven message delivery
     private var messageContinuation: AsyncStream<NodeMessage>.Continuation?
@@ -71,17 +72,24 @@ final class HTTPRequestNode: Codable, Node {
         self.messageContinuation = continuation
     }
 
-    deinit {
-        terminate()
-    }
-
     func initialize(flow: Flow) {
         self.flow = flow
         isRunning = true
+
+        messageStream = AsyncStream { continuation in
+            messageContinuation = continuation
+        }
     }
 
     func execute() {
-        Task {
+        // Prevent multiple executions
+        if let task = currentTask, !task.isCancelled {
+            print("HTTPRequestNode: already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
             guard isRunning else { return }
 
             // Build URL with query string if needed
@@ -125,6 +133,9 @@ final class HTTPRequestNode: Codable, Node {
                     }
                     let outMsg = NodeMessage(payload: responsePayload)
                     send(msg: outMsg)
+                } catch is CancellationError {
+                    // Task was cancelled, exit the loop
+                    return
                 } catch {
                     print("HTTPRequestNode error: \(error)")
                     if senderr {
@@ -136,8 +147,21 @@ final class HTTPRequestNode: Codable, Node {
         }
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+
+        if let task = currentTask {
+            _ = await task.value  // Wait for the task to complete
+        }
+        currentTask = nil
+        messageContinuation?.finish()  // Signal the end of the stream
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
+        messageContinuation?.finish()
     }
 
     func receive(msg: NodeMessage) {

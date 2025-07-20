@@ -62,10 +62,7 @@ final class BrightnessNode: NSObject, Codable, Node {
 
     weak var flow: Flow?
     var isRunning: Bool = false
-
-    deinit {
-        isRunning = false
-    }
+    private var currentTask: Task<Void, Never>?
 
     func initialize(flow: Flow) {
         self.flow = flow
@@ -73,27 +70,55 @@ final class BrightnessNode: NSObject, Codable, Node {
     }
 
     func execute() {
-        Task {
-            if once {
-                if onceDelay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+        // Prevent multiple executions
+        if let task = currentTask, !task.isCancelled {
+            print("BrightnessNode: Already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                if once {
+                    if onceDelay > 0 {
+                        try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                    }
+                    if !isRunning { return }
+                    requestBrightness()
                 }
-                if !isRunning { return }
-                requestBrightness()
-            }
-            guard let interval = `repeat`, interval > 0 else {
+                guard let interval = `repeat`, interval > 0 else {
+                    return
+                }
+                while isRunning {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    if !isRunning { return }
+                    requestBrightness()
+                }
+            } catch is CancellationError {
+                // Task was cancelled, do nothing
                 return
-            }
-            while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
-                if !isRunning { return }
-                requestBrightness()
+            } catch {
+                print("BrightnessNode execution error: \(error)")
+                isRunning = false
+                return
             }
         }
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+
+        if let task = currentTask {
+            _ = await task.value
+        }
+        currentTask = nil
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
     }
 
     func receive(msg: NodeMessage) {

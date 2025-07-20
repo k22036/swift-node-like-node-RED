@@ -63,12 +63,8 @@ final class PressureNode: NSObject, Codable, Node {
     var altimeter: CMAltimeter = CMAltimeter()
     weak var flow: Flow?
     var isRunning: Bool = false
+    private var currentTask: Task<Void, Never>?
     private var lastSentTime: Date?
-
-    deinit {
-        isRunning = false
-        altimeter.stopRelativeAltitudeUpdates()
-    }
 
     func initialize(flow: Flow) {
         self.flow = flow
@@ -76,27 +72,56 @@ final class PressureNode: NSObject, Codable, Node {
     }
 
     func execute() {
-        Task {
-            if once {
-                if onceDelay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+        // Prevent multiple concurrent executions
+        if let task = currentTask, !task.isCancelled {
+            print("PressureNode: Already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                if once {
+                    if onceDelay > 0 {
+                        try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                    }
+                    if !isRunning { return }
+                    requestPressure()
                 }
-                if !isRunning { return }
-                requestPressure()
-            }
-            guard let interval = `repeat`, interval > 0 else {
+                guard let interval = `repeat`, interval > 0 else {
+                    return
+                }
+                while isRunning {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    if !isRunning { return }
+                    requestPressure()
+                }
+            } catch is CancellationError {
+                // Task was cancelled, do nothing
                 return
-            }
-            while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
-                if !isRunning { return }
-                requestPressure()
+            } catch {
+                print("PressureNode execution error: \(error)")
+                isRunning = false
+                altimeter.stopRelativeAltitudeUpdates()
             }
         }
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+        altimeter.stopRelativeAltitudeUpdates()
+
+        if let task = currentTask {
+            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
+        }
+        currentTask = nil
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
         altimeter.stopRelativeAltitudeUpdates()
     }
 

@@ -89,10 +89,7 @@ final class InjectNode: Codable, Node {
 
     weak var flow: Flow?
     var isRunning: Bool = false
-
-    deinit {
-        isRunning = false
-    }
+    private var currentTask: Task<Void, Never>?
 
     func initialize(flow: Flow) {
         self.flow = flow
@@ -100,35 +97,64 @@ final class InjectNode: Codable, Node {
     }
 
     func execute() {
-        Task {
+        // Prevent multiple concurrent executions
+        if let task = currentTask, !task.isCancelled {
+            print("InjectNode: Already running, skipping execution.")
+            return
+        }
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
             if !isRunning { return }
 
-            if once {
-                // If the node is set to trigger once, wait for the specified delay before sending the message
-                if onceDelay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+            do {
+                if once {
+                    // If the node is set to trigger once, wait for the specified delay before sending the message
+                    if onceDelay > 0 {
+                        try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
+                    }
+                    if !isRunning { return }
+                    let msg = createMessage()
+                    send(msg: msg)
                 }
-                if !isRunning { return }
-                let msg = createMessage()
-                send(msg: msg)
-            }
 
-            guard let repeatValue = `repeat`, repeatValue > 0 else {
-                print("No repeat set or repeat value is zero. Exiting execution.")
-                return  // If no repeat is set, exit
-            }
+                guard let repeatValue = `repeat`, repeatValue > 0 else {
+                    print("No repeat set or repeat value is zero. Exiting execution.")
+                    return  // If no repeat is set, exit
+                }
 
-            while isRunning {
-                try await Task.sleep(nanoseconds: UInt64(repeatValue * 1_000_000_000))
-                if !isRunning { return }
-                let msg = createMessage()
-                send(msg: msg)
+                while isRunning {
+                    try await Task.sleep(nanoseconds: UInt64(repeatValue * 1_000_000_000))
+                    if !isRunning { return }
+                    let msg = createMessage()
+                    send(msg: msg)
+                }
+            } catch is CancellationError {
+                // Task was canceled, exit gracefully
+                return
+            } catch {
+                // Handle other errors (e.g., sleep failure)
+                print("InjectNode execution error: \(error)")
+                // Optionally stop running on unexpected errors
+                isRunning = false
+                return
             }
         }
     }
 
-    func terminate() {
+    func terminate() async {
         isRunning = false
+        currentTask?.cancel()
+
+        if let task = currentTask {
+            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
+        }
+        currentTask = nil
+    }
+
+    deinit {
+        isRunning = false
+        currentTask?.cancel()
     }
 
     func receive(msg: NodeMessage) {}

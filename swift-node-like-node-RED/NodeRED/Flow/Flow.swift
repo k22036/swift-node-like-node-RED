@@ -150,8 +150,8 @@ final class Flow {
         execute()
     }
 
-    func stop() {
-        terminate()
+    func stop() async {
+        await terminate()
     }
 
     // Extracted helpers for node lifecycle operations
@@ -185,8 +185,17 @@ final class Flow {
         forEachAvailableNode { $0.execute() }
     }
 
-    func terminate() {
-        forEachNode { $0.terminate() }
+    func terminate() async {
+        let semaphore = AsyncSemaphore(value: 10)
+        await withTaskGroup(of: Void.self) { group in
+            for node in nodes.values {
+                group.addTask {
+                    await semaphore.wait()
+                    await node.terminate()
+                    await semaphore.signal()
+                }
+            }
+        }
     }
 
     func routeMessage(from sourceNode: Node, message: NodeMessage) {
