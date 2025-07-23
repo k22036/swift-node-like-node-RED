@@ -91,6 +91,9 @@ final class Flow {
                 return try JSONDecoder().decode(InjectNode.self, from: jsonData)
             case NodeType.debug.rawValue:
                 return try JSONDecoder().decode(DebugNode.self, from: jsonData)
+            // function
+            case NodeType.filter.rawValue:
+                return try JSONDecoder().decode(FilterNode.self, from: jsonData)
             // network
             case NodeType.mqttin.rawValue:
                 return try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
