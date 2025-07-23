@@ -16,6 +16,8 @@ enum NodeType: String {
     // common
     case inject = "inject"
     case debug = "debug"
+    // function
+    case filter = "rbe"
     // network
     case mqttin = "mqtt in"
     case mqttout = "mqtt out"
