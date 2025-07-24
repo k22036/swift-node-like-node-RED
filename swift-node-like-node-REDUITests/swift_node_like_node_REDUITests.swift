@@ -33,8 +33,6 @@ final class Swift_node_like_node_REDUITests: XCTestCase {
         // UI tests must launch the application that they test.
         let app = XCUIApplication()
 
-        // Ensure permission handlers are set before launching
-        setupPermissionHandlers()
         // Use optimized launch and focus
         app.launchOptimized()
         app.tap()
