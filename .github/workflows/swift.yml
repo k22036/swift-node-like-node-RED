@@ -49,10 +49,6 @@ jobs:
         run: ./scripts/swift-lint.sh
         shell: sh
 
-      - name: Grant permissions to app in simulator
-        run: |
-          xcrun simctl privacy booted grant location jp.ac.aitech.swift-node-like-node-RED
-
       # Build and test
       - name: Build and test
         run: |
