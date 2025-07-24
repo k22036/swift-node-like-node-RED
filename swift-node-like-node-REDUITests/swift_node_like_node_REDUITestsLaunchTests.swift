@@ -15,27 +15,25 @@ final class Swift_node_like_node_REDUITestsLaunchTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+
+        // Setup permission handlers once for all tests
+        setupPermissionHandlers()
     }
 
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()
-        app.launch()
 
-        // Automatically allow location permission dialog if it appears
-        addUIInterruptionMonitor(withDescription: "Location Permission") { alert in
-            let allowButton = alert.buttons["Allow While Using App"]
-            if allowButton.exists {
-                allowButton.tap()
-                return true
-            }
-            return false
-        }
-        app.tap()  // Tap the screen to trigger dialog detection
+        // Use optimized launch helper
+        app.launchOptimized()
 
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Launch Screen"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        // Quick verification that app launched successfully
+        XCTAssertTrue(verifyAppLaunched(app), "App should launch successfully")
+
+        // Handle permission dialogs if they appear
+        app.handlePermissionDialog()
+
+        // Only take screenshot when necessary
+        addOptimizedScreenshot(name: "Launch Screen", app: app)
     }
 }
