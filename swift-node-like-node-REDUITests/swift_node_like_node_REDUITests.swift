@@ -33,7 +33,7 @@ final class Swift_node_like_node_REDUITests: XCTestCase {
 
         // Quick app verification with minimal overhead
         XCTAssertTrue(verifyAppLaunched(app), "App should launch successfully")
-        
+
         // Handle any system permission dialogs
         app.handlePermissionDialog()
 
