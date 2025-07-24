@@ -32,16 +32,6 @@ extension XCUIApplication {
             locationAlert.buttons["Allow While Using App"].tap()
             return
         }
-
-        // Check for notification permission dialog
-        let notificationAlert = alerts.firstMatch
-        if notificationAlert.exists {
-            if notificationAlert.buttons["Allow"].exists {
-                notificationAlert.buttons["Allow"].tap()
-            } else if notificationAlert.buttons["OK"].exists {
-                notificationAlert.buttons["OK"].tap()
-            }
-        }
     }
 }
 
