@@ -5,6 +5,7 @@
 //  Created by k22036kk on 2025/06/16.
 //
 
+import AsyncAlgorithms
 import Foundation
 
 final class InjectNode: Codable, Node {
@@ -123,8 +124,9 @@ final class InjectNode: Codable, Node {
                     return  // If no repeat is set, exit
                 }
 
-                while isRunning {
-                    try await Task.sleep(nanoseconds: UInt64(repeatValue * 1_000_000_000))
+                for await _ in AsyncTimerSequence(
+                    interval: .seconds(repeatValue), clock: .suspending)
+                {
                     if !isRunning { return }
                     let msg = createMessage()
                     send(msg: msg)
@@ -133,7 +135,7 @@ final class InjectNode: Codable, Node {
                 // Task was canceled, exit gracefully
                 return
             } catch {
-                // Handle other errors (e.g., sleep failure)
+                // Handle other errors (e.g., timer failure)
                 print("InjectNode execution error: \(error)")
                 // Optionally stop running on unexpected errors
                 isRunning = false
