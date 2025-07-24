@@ -32,6 +32,7 @@ final class Swift_node_like_node_REDUITests: XCTestCase {
 
         // Use optimized launch
         app.launchOptimized()
+        app.tap()
 
         // Setup permission handlers for dialogs
         setupPermissionHandlers()
