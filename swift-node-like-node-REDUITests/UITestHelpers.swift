@@ -13,7 +13,6 @@ extension XCUIApplication {
         // Disable animations and unnecessary features
         launchEnvironment["UI_TEST_DISABLE_ANIMATION"] = "YES"
         launchEnvironment["DISABLE_LOGGING"] = "YES"
-        launchEnvironment["DISABLE_NETWORKING"] = "YES"  // If applicable
         launchArguments.append("--uitesting")
         launchArguments.append("--disable-hardware-keyboards")
 
