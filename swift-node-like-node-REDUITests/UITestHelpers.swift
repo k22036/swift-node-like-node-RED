@@ -57,24 +57,6 @@ extension XCTestCase {
             }
             return false
         }
-
-        addUIInterruptionMonitor(withDescription: "Notification Permission") { alert in
-            let allowButton = alert.buttons["Allow"]
-            if allowButton.exists {
-                allowButton.tap()
-                return true
-            }
-            return false
-        }
-
-        addUIInterruptionMonitor(withDescription: "General Permission") { alert in
-            let okButton = alert.buttons["OK"]
-            if okButton.exists {
-                okButton.tap()
-                return true
-            }
-            return false
-        }
     }
 
     /// Only take screenshots in debug mode or CI environment
