@@ -29,10 +29,12 @@ final class Swift_node_like_node_REDUITests: XCTestCase {
     func testExample() throws {
         // UI tests must launch the application that they test.
         let app = XCUIApplication()
-        // Setup permission handlers for dialogs
-        setupPermissionHandlers()
+
         // Use optimized launch
         app.launchOptimized()
+
+        // Setup permission handlers for dialogs
+        setupPermissionHandlers()
 
         // Quick app verification with minimal overhead
         XCTAssertTrue(verifyAppLaunched(app), "App should launch successfully")
