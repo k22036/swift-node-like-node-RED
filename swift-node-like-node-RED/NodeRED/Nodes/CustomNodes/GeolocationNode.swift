@@ -168,6 +168,8 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
         lastSentTime = Date()
+
+        locationManager.stopUpdatingLocation()  // Stop updates after sending
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
