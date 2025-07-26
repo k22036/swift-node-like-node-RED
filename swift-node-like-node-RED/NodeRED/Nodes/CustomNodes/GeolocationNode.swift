@@ -10,9 +10,19 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     let `repeat`: Double?
     let once: Bool
     let onceDelay: Double
+    let mode: String
+    let centerLat: Double
+    let centerLon: Double
+    let radius: Double
     private let x: Int
     private let y: Int
     let wires: [[String]]
+
+    private enum ModeType: String {
+        case periodic = "periodic"
+        case update = "update"
+        case area = "area"
+    }
 
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -53,13 +63,55 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
             self.onceDelay = 0
         }
 
+        let _mode = try container.decode(String.self, forKey: .mode)
+        guard let modeType = ModeType(rawValue: _mode) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .mode, in: container,
+                debugDescription: "Invalid mode type: \(_mode)")
+        }
+        self.mode = modeType.rawValue
+
+        if let lat = try? container.decode(Double.self, forKey: .centerLat) {
+            self.centerLat = lat
+        } else if let latStr = try? container.decode(String.self, forKey: .centerLat),
+            let lat = Double(latStr)
+        {
+            self.centerLat = lat
+        } else {
+            let latInt = try container.decode(Int.self, forKey: .centerLat)
+            self.centerLat = Double(latInt)
+        }
+
+        if let lon = try? container.decode(Double.self, forKey: .centerLon) {
+            self.centerLon = lon
+        } else if let lonStr = try? container.decode(String.self, forKey: .centerLon),
+            let lon = Double(lonStr)
+        {
+            self.centerLon = lon
+        } else {
+            let lonInt = try container.decode(Int.self, forKey: .centerLon)
+            self.centerLon = Double(lonInt)
+        }
+
+        if let radiusVal = try? container.decode(Double.self, forKey: .radius) {
+            self.radius = radiusVal
+        } else if let radiusStr = try? container.decode(String.self, forKey: .radius),
+            let radiusVal = Double(radiusStr)
+        {
+            self.radius = radiusVal
+        } else {
+            let radiusInt = try container.decode(Int.self, forKey: .radius)
+            self.radius = Double(radiusInt)
+        }
+
         self.x = try container.decode(Int.self, forKey: .x)
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
+        case id, type, z, name, `repeat`, once, onceDelay, mode, centerLat, centerLon, radius, x, y,
+            wires
     }
 
     var locationManager: CLLocationManager = CLLocationManager()
@@ -67,6 +119,12 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     var isRunning: Bool = false
     private var currentTask: Task<Void, Never>?
     private var lastSentTime: Date?
+
+    var monitor: CLMonitor?
+    var identifier: String {
+        return
+            "GeolocationArea, centerLat: \(centerLat), centerLon: \(centerLon), radius: \(radius)"
+    }
 
     func initialize(flow: Flow) {
         self.flow = flow
@@ -84,6 +142,47 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
 
         currentTask = Task { [weak self] in
             guard let self = self else { return }
+
+            if mode == ModeType.update.rawValue {
+                startUpdateLocation()
+                return
+            } else if mode == ModeType.area.rawValue {
+                if monitor == nil {
+                    // Use a unique name for each monitor instance to avoid conflicts
+                    monitor = await CLMonitor("GeolocationArea\(id)")
+                }
+                let condition = CLMonitor.CircularGeographicCondition(
+                    center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+                    radius: radius)
+                await monitor?.add(condition, identifier: identifier)
+
+                guard let monitor = monitor else {
+                    print("Failed to initialize geolocation area monitoring.")
+                    return
+                }
+
+                do {
+                    for try await event in await monitor.events {
+                        // Exit the loop if the task is cancelled
+                        if Task.isCancelled {
+                            break
+                        }
+                        if event.state == .satisfied {
+                            sendEnter()
+
+                        } else if event.state == .unsatisfied {
+                            sendExit()
+                        }
+                    }
+                } catch {
+                    // Ignore cancellation errors, as they are expected on termination
+                    if !(error is CancellationError) {
+                        print("Geolocation area monitoring error: \(error)")
+                    }
+                }
+
+                return
+            }
 
             do {
                 if once {
@@ -115,6 +214,9 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     func terminate() async {
         isRunning = false
         currentTask?.cancel()
+        locationManager.stopUpdatingLocation()
+        await monitor?.remove(identifier)
+        monitor = nil
 
         if let task = currentTask {
             _ = await task.value  // Ensure the task is awaited to avoid memory leaks
@@ -125,6 +227,8 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     deinit {
         isRunning = false
         currentTask?.cancel()
+        locationManager.stopUpdatingLocation()
+        monitor = nil
     }
 
     func receive(msg: NodeMessage) {
@@ -133,6 +237,22 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
 
     func send(msg: NodeMessage) {
         flow?.routeMessage(from: self, message: msg)
+    }
+
+    func sendEnter() {
+        let payload: [String: String] = ["event": "enter"]
+        let msg = NodeMessage(payload: payload)
+        send(msg: msg)
+    }
+
+    func sendExit() {
+        let payload: [String: String] = ["event": "exit"]
+        let msg = NodeMessage(payload: payload)
+        send(msg: msg)
+    }
+
+    private func startUpdateLocation() {
+        locationManager.startUpdatingLocation()
     }
 
     private func requestLocation() {
@@ -168,8 +288,6 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
         lastSentTime = Date()
-
-        locationManager.stopUpdatingLocation()  // Stop updates after sending
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
