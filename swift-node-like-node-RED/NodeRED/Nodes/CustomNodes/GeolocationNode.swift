@@ -259,6 +259,15 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         locationManager.requestLocation()
     }
 
+    /// For testing: simulate a CLMonitor event for area mode
+    func simulateAreaEvent(state: CLMonitor.Event.State) {
+        if state == .satisfied {
+            sendEnter()
+        } else if state == .unsatisfied {
+            sendExit()
+        }
+    }
+
     /// For testing: simulate a location update
     func simulateLocation(latitude: Double, longitude: Double) {
         let location = CLLocation(
