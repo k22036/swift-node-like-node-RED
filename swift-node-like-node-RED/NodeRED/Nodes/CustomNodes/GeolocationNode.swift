@@ -121,10 +121,9 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     private var lastSentTime: Date?
 
     var monitor: CLMonitor?
-    var identifier: String {
-        return
-            "GeolocationArea, centerLat: \(centerLat), centerLon: \(centerLon), radius: \(radius)"
-    }
+    lazy var identifier: String = {
+        "GeolocationArea, centerLat: \(centerLat), centerLon: \(centerLon), radius: \(radius)"
+    }()
 
     func initialize(flow: Flow) {
         self.flow = flow
