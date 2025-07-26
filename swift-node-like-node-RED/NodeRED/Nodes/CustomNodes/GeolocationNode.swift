@@ -1,3 +1,4 @@
+import AsyncAlgorithms
 import CoreLocation
 import Foundation
 
@@ -194,8 +195,8 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
                 guard let interval = `repeat`, interval > 0 else {
                     return
                 }
-                while isRunning {
-                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
+                {
                     if !isRunning { return }
                     requestLocation()
                 }
@@ -285,7 +286,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         guard isRunning, let loc = locations.last else { return }
 
         // Debounce to prevent rapid-fire messages
-        if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 1.0 {
+        if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 0.9 {
             return
         }
 
