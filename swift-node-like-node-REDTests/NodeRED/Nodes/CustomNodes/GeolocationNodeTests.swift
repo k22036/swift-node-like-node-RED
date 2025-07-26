@@ -22,6 +22,10 @@ struct GeolocationNodeTests {
                     "repeat": "5",
                     "once": true,
                     "onceDelay": "0.3",
+                    "mode": "periodic",
+                    "centerLat": 0,
+                    "centerLon": 0,
+                    "radius": 100,
                     "x": 10,
                     "y": 20,
                     "wires": [["node1"]]
@@ -42,6 +46,10 @@ struct GeolocationNodeTests {
         #expect(node.repeat == 5.0)
         #expect(node.once == true)
         #expect(node.onceDelay == 0.3)
+        #expect(node.mode == "periodic")
+        #expect(node.centerLat == 0)
+        #expect(node.centerLon == 0)
+        #expect(node.radius == 100)
         #expect(node.wires.first?.first == "node1")
     }
 
@@ -57,6 +65,10 @@ struct GeolocationNodeTests {
                     "repeat": "",
                     "once": false,
                     "onceDelay": 0,
+                    "mode": "periodic",
+                    "centerLat": 0,
+                    "centerLon": 0,
+                    "radius": 100,
                     "x": 0,
                     "y": 0,
                     "wires": [["test-node"]]
@@ -77,16 +89,19 @@ struct GeolocationNodeTests {
 
         // Simulate a location update
         node.simulateLocation(latitude: 12.34, longitude: 56.78)
+        try await Task.sleep(nanoseconds: UInt64(1.1 * 1_000_000_000))
+        node.simulateLocation(latitude: 12.34, longitude: 56.78)
 
         // Allow asynchronous send
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
 
         await node.terminate()
 
-        #expect(testNode.buffer.count == 1)
-        if let msg = testNode.buffer.first {
+        #expect(testNode.buffer.count == 2)
+        for msg in testNode.buffer {
             guard let payload = msg.payload as? [String: Double] else {
-                fatalError("Payload is not a dictionary")
+                #expect(Bool(false), "Payload is not a dictionary")
+                continue
             }
             #expect(payload["latitude"] == 12.34)
             #expect(payload["longitude"] == 56.78)
