@@ -55,6 +55,9 @@ jobs:
       - name: List simulators
         run: xcrun simctl list devices
 
+      - name: List simulators (JSON)
+        run: xcrun simctl list devices --json
+
       # Build and test
       - name: Build and test
         run: |
