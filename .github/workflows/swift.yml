@@ -49,8 +49,11 @@ jobs:
         run: ./scripts/swift-lint.sh
         shell: sh
 
+      - name: Check Xcode version
+        run: xcodebuild -version
+
       - name: List simulators
-        run: xcrun simctl list
+        run: xcrun simctl list devices
 
       # Build and test
       - name: Build and test
