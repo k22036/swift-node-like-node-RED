@@ -49,6 +49,9 @@ jobs:
         run: ./scripts/swift-lint.sh
         shell: sh
 
+      - name: list simulators
+        run: xcrun simctl list
+
       # Build and test
       - name: Build and test
         run: |
