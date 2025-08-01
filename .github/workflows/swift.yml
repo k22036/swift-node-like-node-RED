@@ -56,7 +56,7 @@ jobs:
         run: xcrun simctl list devices
 
       - name: List simulators (JSON)
-        run: xcrun simctl list devices --json
+        run: xcrun simctl list devices --json | grep iOS-
 
       # Build and test
       - name: Build and test
