@@ -167,10 +167,11 @@ final class InjectNode: Codable, Node {
 
     private func createMessage() -> NodeMessage {
         var msg: NodeMessage
+        let now = Date()
 
         switch payloadType {
         case NodeRedType.date.rawValue:
-            msg = NodeMessage(payload: Date().timeIntervalSince1970)
+            msg = NodeMessage(payload: now.timeIntervalSince1970)
         case NodeRedType.number.rawValue:
             if let value = convertToNumber(payload) {
                 msg = NodeMessage(payload: value)
@@ -194,7 +195,7 @@ final class InjectNode: Codable, Node {
             }
             let propValue = prop.v ?? ""
 
-            guard let property = convertToNodeMessageType(propValue, vt: vt) else {
+            guard let property = convertToNodeMessageType(propValue, vt: vt, now: now) else {
                 continue  // Skip if conversion fails
             }
             msg.properties[prop.p] = property
@@ -203,10 +204,12 @@ final class InjectNode: Codable, Node {
         return msg
     }
 
-    private func convertToNodeMessageType(_ value: String, vt: String) -> NodeMessageType? {
+    private func convertToNodeMessageType(_ value: String, vt: String, now: Date)
+        -> NodeMessageType?
+    {
         switch vt {
         case NodeRedType.date.rawValue:
-            return NodeMessageType.intValue(Int(Date().timeIntervalSince1970))
+            return NodeMessageType.intValue(Int(now.timeIntervalSince1970))
         case NodeRedType.number.rawValue:
             if let intValue = Int(value) {
                 return NodeMessageType.intValue(intValue)

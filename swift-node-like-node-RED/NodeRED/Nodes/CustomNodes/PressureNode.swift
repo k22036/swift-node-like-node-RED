@@ -1,3 +1,4 @@
+import AsyncAlgorithms
 import CoreMotion
 import Foundation
 
@@ -92,8 +93,8 @@ final class PressureNode: NSObject, Codable, Node {
                 guard let interval = `repeat`, interval > 0 else {
                     return
                 }
-                while isRunning {
-                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
+                {
                     if !isRunning { return }
                     requestPressure()
                 }
