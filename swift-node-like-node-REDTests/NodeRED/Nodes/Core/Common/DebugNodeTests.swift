@@ -46,15 +46,15 @@ struct DebugNodeTests {
 
             // パース結果の確認
             if let firstNode = nodes.first {
-                print("✅ パースに成功しました！")
-                print("--------------------")
-                print("ノードID: \(firstNode.id)")
+                Logger.debugLog("✅ パースに成功しました！")
+                Logger.debugLog("--------------------")
+                Logger.debugLog("ノードID: \(firstNode.id)")
                 #expect(firstNode.id == "f0bd46d65aaae42b")
-                print("ノードタイプ: \(firstNode.type)")
+                Logger.debugLog("ノードタイプ: \(firstNode.type)")
                 #expect(firstNode.type == "debug")
-                print("ノード名: \(firstNode.name)")
+                Logger.debugLog("ノード名: \(firstNode.name)")
                 #expect(firstNode.name == "debug 2")
-                print("接続先ノードID: \(firstNode.wires.first?.first ?? "なし")")
+                Logger.debugLog("接続先ノードID: \(firstNode.wires.first?.first ?? "なし")")
                 #expect(firstNode.wires.isEmpty == true)
 
                 #expect(firstNode.active == true)
@@ -64,7 +64,7 @@ struct DebugNodeTests {
             }
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
@@ -84,11 +84,11 @@ struct DebugNodeTests {
             flow.addNode(debugNode)
 
             // パース結果の確認
-            print("✅ パースに成功しました！")
-            print("--------------------")
-            print("ノードID: \(debugNode.id)")
-            print("ノードタイプ: \(debugNode.type)")
-            print("ノード名: \(debugNode.name)")
+            Logger.debugLog("✅ パースに成功しました！")
+            Logger.debugLog("--------------------")
+            Logger.debugLog("ノードID: \(debugNode.id)")
+            Logger.debugLog("ノードタイプ: \(debugNode.type)")
+            Logger.debugLog("ノード名: \(debugNode.name)")
 
             #expect(debugNode.isRunning == false)
             debugNode.initialize(flow: flow)
@@ -102,7 +102,7 @@ struct DebugNodeTests {
             #expect(debugNode.isRunning == false)
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
