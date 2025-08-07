@@ -423,7 +423,13 @@ final class MQTTOutNode: Codable, Node {
             return
         }
 
-        let payload = ByteBufferAllocator().buffer(string: "\(msg.payload)")
+        let str: String
+        if let dict = msg.payload as? [String: Any] {
+            str = Util.convertDictToJSON(dict) ?? "\(dict)"
+        } else {
+            str = "\(msg.payload)"
+        }
+        let payload = ByteBufferAllocator().buffer(string: str)
 
         do {
             if version == .v5_0 {

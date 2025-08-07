@@ -5,6 +5,8 @@
 //  Created by k22036kk on 2025/07/21.
 //
 
+import Foundation
+
 class Util {
     static func getMessageProperty(msg: NodeMessage, key: String) -> String? {
         if key == "payload" {
@@ -38,6 +40,13 @@ class Util {
         }
 
         return true
+    }
+
+    static func convertDictToJSON(_ dict: [String: Any]) -> String? {
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: dict) else {
+            return nil
+        }
+        return String(data: jsonData, encoding: .utf8)
     }
 
     static func anyToString(_ value: Any) -> String {
