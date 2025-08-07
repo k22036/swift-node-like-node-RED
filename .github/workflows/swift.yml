@@ -49,6 +49,12 @@ jobs:
         run: ./scripts/swift-lint.sh
         shell: sh
 
+      - name: Kill Simulator and Reset Accessibility
+        run: |
+          killall Simulator || true
+          sudo tccutil reset Accessibility
+          sudo tccutil reset All
+
       # Build and test
       - name: Build and test
         run: |
