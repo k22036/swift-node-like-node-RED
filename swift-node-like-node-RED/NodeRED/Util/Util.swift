@@ -43,10 +43,7 @@ class Util {
     }
 
     static func convertDictToJSON(_ dict: [String: Any]) -> String? {
-        guard
-            let jsonData = try? JSONSerialization.data(
-                withJSONObject: dict, options: .prettyPrinted)
-        else {
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: dict) else {
             return nil
         }
         return String(data: jsonData, encoding: .utf8)
