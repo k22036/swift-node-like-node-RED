@@ -58,23 +58,23 @@ struct InjectNodeTests {
 
             // パース結果の確認
             if let firstNode = nodes.first {
-                print("✅ パースに成功しました！")
-                print("--------------------")
-                print("ノードID: \(firstNode.id)")
+                Logger.debugLog("✅ パースに成功しました！")
+                Logger.debugLog("--------------------")
+                Logger.debugLog("ノードID: \(firstNode.id)")
                 #expect(firstNode.id == "444f85d65fc0f212")
-                print("ノードタイプ: \(firstNode.type)")
+                Logger.debugLog("ノードタイプ: \(firstNode.type)")
                 #expect(firstNode.type == "inject")
-                print("ペイロードタイプ: \(firstNode.payloadType)")
+                Logger.debugLog("ペイロードタイプ: \(firstNode.payloadType)")
                 #expect(firstNode.payloadType == "date")
-                print("接続先ノードID: \(firstNode.wires.first?.first ?? "なし")")
+                Logger.debugLog("接続先ノードID: \(firstNode.wires.first?.first ?? "なし")")
                 #expect(firstNode.wires.first?.first == "2c2786ded68a1173")
 
-                print("props.count: \(firstNode.props.count)")
+                Logger.debugLog("props.count: \(firstNode.props.count)")
                 #expect(firstNode.props.count == 2)
 
                 // propsの確認
                 for prop in firstNode.props {
-                    print("プロパティ名: \(prop.p), 型: \(prop.vt ?? "未定義")")
+                    Logger.debugLog("プロパティ名: \(prop.p), 型: \(prop.vt ?? "未定義")")
                     #expect(prop.p == "payload" || prop.p == "topic")
                 }
 
@@ -84,15 +84,9 @@ struct InjectNodeTests {
             }
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
-    }
-
-    private func debugLog(_ items: Any..., separator: String = " ", terminator: String = "\n") {
-        #if DEBUG
-            print(items.map { "\($0)" }.joined(separator: separator), terminator: terminator)
-        #endif
     }
 
     @Test func execute_inject() async throws {
@@ -166,7 +160,7 @@ struct InjectNodeTests {
             let testNode = try TestNode(id: "test-node")
 
             #expect(injectNode.wires.first == ["test-node"])
-            debugLog("✅ パースに成功しました！")
+            Logger.debugLog("✅ パースに成功しました！")
 
             let flow = try Flow(flowJson: "[]")
             flow.addNode(injectNode)
@@ -185,41 +179,41 @@ struct InjectNodeTests {
             testNode.terminate()
             await injectNode.terminate()
 
-            debugLog("buffer length: \(testNode.buffer.count)")
+            Logger.debugLog("buffer length: \(testNode.buffer.count)")
             #expect(testNode.buffer.count > 0)
 
             for msg in testNode.buffer {
-                debugLog("ペイロード: \(msg.payload)")
+                Logger.debugLog("ペイロード: \(msg.payload)")
                 #expect(msg.payload is Int)
                 #expect(msg.payload as? Int == 1)
 
-                debugLog("props: \(msg.properties)")
-                debugLog("props.count: \(msg.properties.count)")
+                Logger.debugLog("props: \(msg.properties)")
+                Logger.debugLog("props.count: \(msg.properties.count)")
                 #expect(msg.properties.count == 5)
 
                 for prop in msg.properties {
                     switch prop.key {
                     case "topic":
-                        debugLog("トピック: \(prop.value)")
+                        Logger.debugLog("トピック: \(prop.value)")
                         #expect(prop.value.isStringValue == true)
                         #expect(prop.value == NodeMessageType.stringValue(""))
                     case "test1":
-                        debugLog("test1: \(prop.value)")
+                        Logger.debugLog("test1: \(prop.value)")
                         #expect(prop.value.isBoolValue == true)
                         #expect(prop.value == NodeMessageType.boolValue(true))
                     case "test2":
-                        debugLog("test2: \(prop.value)")
+                        Logger.debugLog("test2: \(prop.value)")
                         #expect(prop.value.isIntValue == true)
                         #expect(prop.value == NodeMessageType.intValue(0))
                     case "test3":
-                        debugLog("test3: \(prop.value)")
+                        Logger.debugLog("test3: \(prop.value)")
                         #expect(prop.value.isStringValue == true)
                         #expect(prop.value == NodeMessageType.stringValue("aa"))
                     case "test4":
-                        debugLog("test4: \(prop.value)")
+                        Logger.debugLog("test4: \(prop.value)")
                         #expect(prop.value.isIntValue == true)
                     case "test5":
-                        debugLog("test5: \(prop.value)")
+                        Logger.debugLog("test5: \(prop.value)")
                         #expect(prop.value.isIntValue == true)
                         #expect(prop.value == NodeMessageType.intValue(2))
                     default:
@@ -229,7 +223,7 @@ struct InjectNodeTests {
             }
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            debugLog("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }

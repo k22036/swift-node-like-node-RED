@@ -47,8 +47,8 @@ struct MQTTNodeTests {
             let node = try JSONDecoder().decode(MQTTInNode.self, from: jsonData)
 
             // パース結果の確認
-            print("✅ パースに成功しました！")
-            print("--------------------")
+            Logger.debugLog("✅ パースに成功しました！")
+            Logger.debugLog("--------------------")
 
             #expect(node.id == "429e8ba9ef25cd75")
             #expect(node.type == "mqtt in")
@@ -57,7 +57,7 @@ struct MQTTNodeTests {
             #expect(node.broker == "42b564c03cd4a7a3")
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
@@ -94,8 +94,8 @@ struct MQTTNodeTests {
             let node = try JSONDecoder().decode(MQTTOutNode.self, from: jsonData)
 
             // パース結果の確認
-            print("✅ パースに成功しました！")
-            print("--------------------")
+            Logger.debugLog("✅ パースに成功しました！")
+            Logger.debugLog("--------------------")
 
             #expect(node.id == "1a9eba05c58ca55c")
             #expect(node.type == "mqtt out")
@@ -104,7 +104,7 @@ struct MQTTNodeTests {
             #expect(node.broker == "b23787a73ac018d0")
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
@@ -154,8 +154,8 @@ struct MQTTNodeTests {
             let node = try JSONDecoder().decode(MQTTBroker.self, from: jsonData)
 
             // パース結果の確認
-            print("✅ パースに成功しました！")
-            print("--------------------")
+            Logger.debugLog("✅ パースに成功しました！")
+            Logger.debugLog("--------------------")
 
             #expect(node.id == "f46f9b1e20e42771")
             #expect(node.type == "mqtt-broker")
@@ -170,7 +170,7 @@ struct MQTTNodeTests {
 
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
