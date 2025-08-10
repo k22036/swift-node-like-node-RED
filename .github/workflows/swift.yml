@@ -24,6 +24,7 @@ jobs:
           path: |
             .build
             SourcePackages
+            ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
