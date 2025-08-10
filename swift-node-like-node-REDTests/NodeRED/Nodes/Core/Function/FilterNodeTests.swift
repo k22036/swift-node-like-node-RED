@@ -128,7 +128,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 8)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "a")
@@ -209,7 +209,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 7)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "a")
@@ -287,7 +287,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 2)
 
         #expect(Util.getMessageProperty(msg: testNode.buffer[0], key: "foo") == "a")
@@ -363,7 +363,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 4)
 
         #expect(Util.getMessageProperty(msg: testNode.buffer[0], key: "topic") == "a")
@@ -486,7 +486,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 8)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "a")
@@ -555,7 +555,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 3)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "0")
@@ -619,7 +619,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 3)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "0")
@@ -681,7 +681,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 3)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "100")
@@ -738,7 +738,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 0)
     }
 
@@ -798,7 +798,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 3)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "0")
@@ -862,7 +862,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 3)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "0")
@@ -924,7 +924,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 5)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "1")
@@ -983,7 +983,7 @@ struct FilterNodeTests {
         try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
         await filterNode.terminate()
 
-        print("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
+        Logger.debugLog("Buffer: \(testNode.buffer.map({ Util.anyToString($0.payload) }))")
         #expect(testNode.buffer.count == 2)
 
         #expect(Util.anyToString(testNode.buffer[0].payload) == "55")
