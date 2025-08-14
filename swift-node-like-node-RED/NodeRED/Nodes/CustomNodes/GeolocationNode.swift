@@ -15,6 +15,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     let centerLat: Double
     let centerLon: Double
     let radius: Double
+    let keepAlive: String
     private let x: Int
     private let y: Int
     let wires: [[String]]
@@ -23,6 +24,13 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         case periodic = "periodic"
         case update = "update"
         case area = "area"
+    }
+
+    private enum KeepAliveType: String {
+        case none = "none"
+        case both = "both"
+        case inside = "inside"
+        case outside = "outside"
     }
 
     required init(from decoder: any Decoder) throws {
@@ -105,6 +113,14 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
             self.radius = Double(radiusInt)
         }
 
+        let _keepAlive = try container.decode(String.self, forKey: .keepAlive)
+        guard let keepAliveType = KeepAliveType(rawValue: _keepAlive) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .keepAlive, in: container,
+                debugDescription: "Invalid keep alive type: \(_keepAlive)")
+        }
+        self.keepAlive = keepAliveType.rawValue
+
         self.x = try container.decode(Int.self, forKey: .x)
         self.y = try container.decode(Int.self, forKey: .y)
         self.wires = try container.decode([[String]].self, forKey: .wires)
@@ -112,14 +128,17 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
 
     private enum CodingKeys: String, CodingKey {
         case id, type, z, name, `repeat`, once, onceDelay, mode, centerLat, centerLon, radius, x, y,
-            wires
+            wires, keepAlive
     }
 
     var locationManager: CLLocationManager = CLLocationManager()
     weak var flow: Flow?
     var isRunning: Bool = false
     private var currentTask: Task<Void, Never>?
+    private var keepAliveTask: Task<Void, Never>?
+    private var isInsideArea: Bool = false
     private var lastSentTime: Date?
+    private var lastLocation: CLLocation?
 
     var monitor: CLMonitor?
     lazy var identifier: String = {
@@ -161,26 +180,41 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
                     return
                 }
 
+                // keep alive task
+                if let interval = `repeat`, interval > 0, keepAlive != KeepAliveType.none.rawValue {
+                    keepAliveTask?.cancel()
+                    keepAliveTask = Task { [weak self] in
+                        guard let self = self else { return }
+                        for await _ in AsyncTimerSequence(
+                            interval: .seconds(interval), clock: .suspending)
+                        {
+                            if !self.isRunning { break }
+                            self.sendKeepAlive()
+                        }
+                    }
+                }
+
                 do {
                     for try await event in await monitor.events {
-                        // Exit the loop if the task is cancelled
-                        if Task.isCancelled {
-                            break
-                        }
+                        if Task.isCancelled { break }
                         if event.state == .satisfied {
+                            isInsideArea = true
                             sendEnter()
-
                         } else if event.state == .unsatisfied {
+                            isInsideArea = false
                             sendExit()
                         }
                     }
                 } catch {
-                    // Ignore cancellation errors, as they are expected on termination
                     if !(error is CancellationError) {
                         print("Geolocation area monitoring error: \(error)")
                     }
                 }
-
+                keepAliveTask?.cancel()
+                if let task = keepAliveTask {
+                    _ = await task.value
+                }
+                keepAliveTask = nil
                 return
             }
 
@@ -214,12 +248,15 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     func terminate() async {
         isRunning = false
         currentTask?.cancel()
+        keepAliveTask?.cancel()
         locationManager.stopUpdatingLocation()
         await monitor?.remove(identifier)
         monitor = nil
-
         if let task = currentTask {
-            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
+            _ = await task.value
+        }
+        if let task = keepAliveTask {
+            _ = await task.value
         }
         currentTask = nil
     }
@@ -227,6 +264,8 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     deinit {
         isRunning = false
         currentTask?.cancel()
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
         locationManager.stopUpdatingLocation()
         monitor = nil
     }
@@ -249,6 +288,46 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         let payload: [String: String] = ["event": "exit"]
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
+    }
+
+    // keep alive event sender
+    func sendKeepAlive() {
+        guard isRunning else { return }
+
+        // 現在位置を取得し、エリア内判定
+        requestLocation()
+        let location = lastLocation
+        let isInside: Bool
+        if let location = location {
+            let center = CLLocation(latitude: centerLat, longitude: centerLon)
+            let distance = location.distance(from: center)
+            isInside = distance <= radius
+            isInsideArea = isInside  // 更新エリア内フラグ
+        } else {
+            // 位置情報がなければ従来通りフラグで判定
+            isInside = isInsideArea
+        }
+
+        switch keepAlive {
+        case KeepAliveType.inside.rawValue:
+            if isInside {
+                let payload: [String: String] = ["event": "keepalive_inside"]
+                let msg = NodeMessage(payload: payload)
+                send(msg: msg)
+            }
+        case KeepAliveType.outside.rawValue:
+            if !isInside {
+                let payload: [String: String] = ["event": "keepalive_outside"]
+                let msg = NodeMessage(payload: payload)
+                send(msg: msg)
+            }
+        default:
+            let payload: [String: String] = [
+                "event": isInside ? "keepalive_inside" : "keepalive_outside"
+            ]
+            let msg = NodeMessage(payload: payload)
+            send(msg: msg)
+        }
     }
 
     private func startUpdateLocation() {
@@ -284,9 +363,14 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard isRunning, let loc = locations.last else { return }
-
         // Debounce to prevent rapid-fire messages
         if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 0.9 {
+            return
+        }
+
+        if mode == ModeType.area.rawValue {
+            lastLocation = loc
+            lastSentTime = Date()
             return
         }
 
@@ -297,6 +381,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
         lastSentTime = Date()
+        lastLocation = loc
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
