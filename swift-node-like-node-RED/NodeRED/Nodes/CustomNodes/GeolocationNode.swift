@@ -116,8 +116,8 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         let _keepAlive = try container.decode(String.self, forKey: .keepAlive)
         guard let keepAliveType = KeepAliveType(rawValue: _keepAlive) else {
             throw DecodingError.dataCorruptedError(
-                forKey: .mode, in: container,
-                debugDescription: "Invalid mode type: \(_keepAlive)")
+                forKey: .keepAlive, in: container,
+                debugDescription: "Invalid keep alive type: \(_keepAlive)")
         }
         self.keepAlive = keepAliveType.rawValue
 
