@@ -26,6 +26,7 @@ struct GeolocationNodeTests {
                     "centerLat": 0,
                     "centerLon": 0,
                     "radius": 100,
+                    "keepAlive": "both",
                     "x": 10,
                     "y": 20,
                     "wires": [["node1"]]
@@ -69,6 +70,7 @@ struct GeolocationNodeTests {
                     "centerLat": 0,
                     "centerLon": 0,
                     "radius": 100,
+                    "keepAlive": "both",
                     "x": 0,
                     "y": 0,
                     "wires": [["test-node"]]
@@ -124,6 +126,7 @@ struct GeolocationNodeTests {
                     "centerLat": 0,
                     "centerLon": 0,
                     "radius": 0,
+                    "keepAlive": "both",
                     "x": 0,
                     "y": 0,
                     "wires": [["test-node-update"]]
@@ -178,6 +181,7 @@ struct GeolocationNodeTests {
                     "centerLat": 35.681236,
                     "centerLon": 139.767125,
                     "radius": 100,
+                    "keepAlive": "both",
                     "x": 0,
                     "y": 0,
                     "wires": [["test-node-area"]]
