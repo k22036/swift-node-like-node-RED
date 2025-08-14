@@ -138,6 +138,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     private var keepAliveTask: Task<Void, Never>?
     private var isInsideArea: Bool = false
     private var lastSentTime: Date?
+    private var lastLocation: CLLocation?
 
     var monitor: CLMonitor?
     lazy var identifier: String = {
@@ -291,22 +292,38 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
 
     // keep alive event sender
     func sendKeepAlive() {
+        guard isRunning else { return }
+
+        // 現在位置を取得し、エリア内判定
+        requestLocation()
+        let location = lastLocation
+        let isInside: Bool
+        if let location = location {
+            let center = CLLocation(latitude: centerLat, longitude: centerLon)
+            let distance = location.distance(from: center)
+            isInside = distance <= radius
+            isInsideArea = isInside  // 更新エリア内フラグ
+        } else {
+            // 位置情報がなければ従来通りフラグで判定
+            isInside = isInsideArea
+        }
+
         switch keepAlive {
         case KeepAliveType.inside.rawValue:
-            if isInsideArea {
+            if isInside {
                 let payload: [String: String] = ["event": "keepalive_inside"]
                 let msg = NodeMessage(payload: payload)
                 send(msg: msg)
             }
         case KeepAliveType.outside.rawValue:
-            if !isInsideArea {
+            if !isInside {
                 let payload: [String: String] = ["event": "keepalive_outside"]
                 let msg = NodeMessage(payload: payload)
                 send(msg: msg)
             }
         default:
             let payload: [String: String] = [
-                "event": isInsideArea ? "keepalive_inside" : "keepalive_outside"
+                "event": isInside ? "keepalive_inside" : "keepalive_outside"
             ]
             let msg = NodeMessage(payload: payload)
             send(msg: msg)
@@ -346,9 +363,14 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard isRunning, let loc = locations.last else { return }
-
         // Debounce to prevent rapid-fire messages
         if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 0.9 {
+            return
+        }
+
+        if mode == ModeType.area.rawValue {
+            lastLocation = loc
+            lastSentTime = Date()
             return
         }
 
@@ -359,6 +381,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
         lastSentTime = Date()
+        lastLocation = loc
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
