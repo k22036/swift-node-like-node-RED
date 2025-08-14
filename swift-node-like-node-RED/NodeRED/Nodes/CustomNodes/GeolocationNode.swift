@@ -27,6 +27,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     }
 
     private enum KeepAliveType: String {
+        case none = "none"
         case both = "both"
         case inside = "inside"
         case outside = "outside"
@@ -179,7 +180,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
                 }
 
                 // keep alive task
-                if let interval = `repeat`, interval > 0 {
+                if let interval = `repeat`, interval > 0, keepAlive != KeepAliveType.none.rawValue {
                     keepAliveTask?.cancel()
                     keepAliveTask = Task { [weak self] in
                         guard let self = self else { return }
