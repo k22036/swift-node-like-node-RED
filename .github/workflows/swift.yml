@@ -43,9 +43,9 @@ jobs:
           sudo tccutil reset Accessibility
           sudo tccutil reset All
 
-      - name: Install xcpretty
+      - name: Install xcbeautify
         run: |
-          gem install xcpretty
+          brew install xcbeautify
 
       # Build and test
       - name: Build and test
@@ -62,7 +62,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" | xcpretty -r html --output .build/test_results.html
+            CODE_SIGN_ENTITLEMENTS="" | xcbeautify
 
       - name: Upload test results
         if: always()
@@ -70,10 +70,3 @@ jobs:
         with:
           name: test-results
           path: .build/Logs/Test/*.xcresult
-
-      - name: Upload xcpretty test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcpretty-report
-          path: .build/test_results.html
