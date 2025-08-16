@@ -43,10 +43,6 @@ jobs:
           sudo tccutil reset Accessibility
           sudo tccutil reset All
 
-      - name: Install xcbeautify
-        run: |
-          brew install xcbeautify
-
       # Build and test
       - name: Build and test
         run: |
