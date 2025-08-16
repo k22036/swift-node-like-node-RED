@@ -71,9 +71,9 @@ jobs:
           name: test-results
           path: .build/Logs/Test/*.xcresult
 
-      - name: Upload xcpretty junit
+      - name: Upload xcpretty test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-report
-          path: .build/junit.xml
+          name: xcpretty-report
+          path: .build/test_results.html
