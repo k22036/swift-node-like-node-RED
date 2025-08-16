@@ -51,6 +51,7 @@ jobs:
             -configuration CI \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -parallel-testing-enabled NO \
             -derivedDataPath .build \
             -skipPackageSignatureValidation \
             CODE_SIGNING_ALLOWED=NO \
