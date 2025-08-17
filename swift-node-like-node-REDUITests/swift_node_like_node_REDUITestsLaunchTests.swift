@@ -25,7 +25,6 @@ final class Swift_node_like_node_REDUITestsLaunchTests: XCTestCase {
 
         // Use optimized launch helper
         app.launchOptimized()
-        app.tap()
 
         // Quick verification that app launched successfully
         XCTAssertTrue(verifyAppLaunched(app), "App should launch successfully")
