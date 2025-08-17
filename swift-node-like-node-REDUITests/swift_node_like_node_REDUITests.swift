@@ -31,7 +31,6 @@ final class Swift_node_like_node_REDUITests: XCTestCase {
 
         // Use optimized launch and focus
         app.launchOptimized()
-        app.tap()
 
         // Quick app verification with minimal overhead
         XCTAssertTrue(verifyAppLaunched(app), "App should launch successfully")
