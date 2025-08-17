@@ -132,6 +132,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
     }
 
     var locationManager: CLLocationManager = CLLocationManager()
+    private var backgroundSession: CLBackgroundActivitySession?
     weak var flow: Flow?
     var isRunning: Bool = false
     private var currentTask: Task<Void, Never>?
@@ -150,6 +151,8 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         isRunning = true
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
+        locationManager.allowsBackgroundLocationUpdates = true
+        self.backgroundSession = CLBackgroundActivitySession()
     }
 
     func execute() {
@@ -250,6 +253,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         currentTask?.cancel()
         keepAliveTask?.cancel()
         locationManager.stopUpdatingLocation()
+        backgroundSession?.invalidate()
         await monitor?.remove(identifier)
         monitor = nil
         if let task = currentTask {
@@ -267,6 +271,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
         keepAliveTask?.cancel()
         keepAliveTask = nil
         locationManager.stopUpdatingLocation()
+        backgroundSession?.invalidate()
         monitor = nil
     }
 

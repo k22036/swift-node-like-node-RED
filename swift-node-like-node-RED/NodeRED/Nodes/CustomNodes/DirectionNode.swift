@@ -57,6 +57,7 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     private var locationManager: CLLocationManager?
+    private var backgroundSession: CLBackgroundActivitySession?
     weak var flow: Flow?
     private var currentTask: Task<Void, Never>?
     var isRunning: Bool = false
@@ -67,6 +68,8 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         locationManager = CLLocationManager()
         locationManager?.delegate = self
         locationManager?.requestWhenInUseAuthorization()
+        locationManager?.allowsBackgroundLocationUpdates = true
+        self.backgroundSession = CLBackgroundActivitySession()
         locationManager?.startUpdatingHeading()
     }
 
@@ -103,6 +106,7 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
                 print("DirectionNode execution error: \(error)")
                 isRunning = false
                 locationManager?.stopUpdatingHeading()
+                backgroundSession?.invalidate()
                 locationManager = nil
                 return
             }
@@ -118,6 +122,7 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = false
         currentTask?.cancel()
         locationManager?.stopUpdatingHeading()
+        backgroundSession?.invalidate()
         locationManager = nil
 
         if let task = currentTask {
@@ -130,6 +135,7 @@ final class DirectionNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = false
         currentTask?.cancel()
         locationManager?.stopUpdatingHeading()
+        backgroundSession?.invalidate()
         locationManager = nil
     }
 
