@@ -62,6 +62,7 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     var locationManager: CLLocationManager = CLLocationManager()
+    private var backgroundSession: CLBackgroundActivitySession?
     weak var flow: Flow?
     var isRunning: Bool = false
     private var currentTask: Task<Void, Never>?
@@ -74,6 +75,8 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         locationManager.requestWhenInUseAuthorization()
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         locationManager.distanceFilter = kCLDistanceFilterNone
+        locationManager.allowsBackgroundLocationUpdates = true
+        self.backgroundSession = CLBackgroundActivitySession()
     }
 
     func execute() {
@@ -85,6 +88,8 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
 
         currentTask = Task { [weak self] in
             guard let self = self else { return }
+
+            locationManager.startUpdatingLocation()
 
             do {
                 if once {
@@ -109,6 +114,7 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
                 print("VelocityNode execution error: \(error)")
                 isRunning = false
                 locationManager.stopUpdatingLocation()
+                backgroundSession?.invalidate()
                 locationManager.delegate = nil
             }
         }
@@ -118,6 +124,7 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = false
         currentTask?.cancel()
         locationManager.stopUpdatingLocation()
+        backgroundSession?.invalidate()
 
         if let task = currentTask {
             _ = await task.value  // Ensure the task is awaited to avoid memory leaks
@@ -129,6 +136,7 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = false
         currentTask?.cancel()
         locationManager.stopUpdatingLocation()
+        backgroundSession?.invalidate()
         locationManager.delegate = nil
     }
 
@@ -140,25 +148,34 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         flow?.routeMessage(from: self, message: msg)
     }
 
+    private var lastVelocity = 0.0
+    private var isRequested = false
+
     private func requestVelocity() {
         guard CLLocationManager.locationServicesEnabled() else { return }
-        locationManager.startUpdatingLocation()
+        isRequested = true
     }
 
     // CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard isRunning, let location = locations.last, location.speed >= 0 else { return }
+        lastVelocity = location.speed
+
         // Debounce to prevent rapid-fire messages
         if let lastSent = self.lastSentTime, Date().timeIntervalSince(lastSent) < 0.02 {
             return
         }
+        if !isRequested {
+            return
+        }
+
         let payload: [String: Double] = [
             "velocity": location.speed  // m/s
         ]
         let msg = NodeMessage(payload: payload)
         send(msg: msg)
         self.lastSentTime = Date()
-        //        locationManager.stopUpdatingLocation()
+        isRequested = false
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

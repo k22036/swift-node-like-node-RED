@@ -62,6 +62,7 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     var locationManager: CLLocationManager = CLLocationManager()
+    private var backgroundSession: CLBackgroundActivitySession?
     weak var flow: Flow?
     var isRunning: Bool = false
     private var currentTask: Task<Void, Never>?
@@ -72,6 +73,8 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = true
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
+        locationManager.allowsBackgroundLocationUpdates = true
+        self.backgroundSession = CLBackgroundActivitySession()
     }
 
     func execute() {
@@ -107,6 +110,7 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
                 print("AltitudeNode: Error during execution - \(error)")
                 isRunning = false
                 locationManager.stopUpdatingLocation()
+                backgroundSession?.invalidate()
                 return
             }
 
@@ -117,6 +121,7 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = false
         currentTask?.cancel()
         locationManager.stopUpdatingLocation()
+        backgroundSession?.invalidate()
 
         if let task = currentTask {
             _ = await task.value  // Wait for the task to complete
@@ -128,6 +133,7 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         isRunning = false
         currentTask?.cancel()
         locationManager.stopUpdatingLocation()
+        backgroundSession?.invalidate()
         locationManager.delegate = nil
     }
 
