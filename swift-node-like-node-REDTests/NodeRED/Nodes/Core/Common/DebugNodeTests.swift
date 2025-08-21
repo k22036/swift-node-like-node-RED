@@ -80,8 +80,8 @@ struct DebugNodeTests {
         do {
             let debugNode = (try JSONDecoder().decode([DebugNode].self, from: jsonData).first)!
 
-            let flow = try Flow(flowJson: "[]")
-            flow.addNode(debugNode)
+            let flow = try await Flow(flowJson: "[]")
+            await flow.addNode(debugNode)
 
             // パース結果の確認
             Logger.debugLog("✅ パースに成功しました！")
@@ -90,16 +90,16 @@ struct DebugNodeTests {
             Logger.debugLog("ノードタイプ: \(debugNode.type)")
             Logger.debugLog("ノード名: \(debugNode.name)")
 
-            #expect(debugNode.isRunning == false)
-            debugNode.initialize(flow: flow)
-            #expect(debugNode.isRunning == true)
-            debugNode.execute()
-            debugNode.receive(msg: msg)
+            #expect(await debugNode.isRunning == false)
+            await debugNode.initialize(flow: flow)
+            #expect(await debugNode.isRunning == true)
+            await debugNode.execute()
+            await debugNode.receive(msg: msg)
 
             // 0.5秒待機
             try await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
             await debugNode.terminate()
-            #expect(debugNode.isRunning == false)
+            #expect(await debugNode.isRunning == false)
         } catch {
             // パースに失敗した場合のエラーハンドリング
             Logger.debugLog("❌ パースに失敗しました: \(error)")

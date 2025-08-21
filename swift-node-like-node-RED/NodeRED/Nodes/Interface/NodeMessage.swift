@@ -7,12 +7,12 @@
 
 import Foundation
 
-struct NodeMessage {
-    var payload: Any
+struct NodeMessage: Sendable {
+    var payload: any Sendable
     private var _msgid: String
     var properties: [String: NodeMessageType] = [:]
 
-    init(payload: Any) {
+    init(payload: any Sendable) {
         self.payload = payload
         self._msgid = UUID().uuidString
     }

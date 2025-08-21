@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var flow: Flow?
     @State private var isRunning: Bool = false
 
+    @State private var cameraNode: CameraNode?
+
     var body: some View {
         TabView {
             // Flow Configuration Tab
@@ -35,11 +37,17 @@ struct ContentView: View {
                         }
                     }
                 HStack {
-                    Button("Deploy") { deployFlow() }
-                        .disabled(flowJson.isEmpty || isRunning)
+                    Button("Deploy") {
+                        Task {
+                            await deployFlow()
+                        }
+                    }
+                    .disabled(flowJson.isEmpty || isRunning)
                     Button("Start") {
-                        flow?.start()
-                        isRunning = true
+                        Task {
+                            await flow?.start()
+                            isRunning = true
+                        }
                     }
                     .disabled(flow == nil || isRunning)
                     Button("Stop") {
@@ -63,7 +71,7 @@ struct ContentView: View {
 
             // Camera Preview Tab
             Group {
-                if let session = flow?.getCameraNode()?.session {
+                if let session = cameraNode?.session, session.isRunning {
                     CameraPreview(session: session)
                         .ignoresSafeArea()
                 } else {
@@ -74,9 +82,10 @@ struct ContentView: View {
         }
     }
 
-    private func deployFlow() {
+    private func deployFlow() async {
         do {
-            let f = try Flow(flowJson: flowJson)
+            let f = try await Flow(flowJson: flowJson)
+            cameraNode = await f.getCameraNode()
             flow = f
         } catch {
             print("Failed to deploy flow: \(error)")

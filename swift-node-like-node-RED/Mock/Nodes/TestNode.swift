@@ -15,7 +15,25 @@
 import DequeModule
 import Foundation
 
-final class TestNode: Codable, Node {
+fileprivate actor TestState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+    fileprivate var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func bufferAppend(_ msg: NodeMessage) {
+        buffer.append(msg)
+    }
+}
+
+final class TestNode: Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
@@ -32,27 +50,36 @@ final class TestNode: Codable, Node {
         case id, type, z, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    var buffer: Deque<NodeMessage> = Deque<NodeMessage>()
+    private let state = TestState()
 
-    deinit {
-        isRunning = false
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
+    var buffer: Deque<NodeMessage> {
+        get async {
+            await state.buffer
+        }
+    }
+
+    deinit {
+    }
+
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
     }
 
     func execute() {}
 
-    func terminate() {
-        isRunning = false
+    func terminate() async {
+        await state.setIsRunning(false)
     }
 
-    func receive(msg: NodeMessage) {
-        buffer.append(msg)
+    func receive(msg: NodeMessage) async {
+        await state.bufferAppend(msg)
     }
 
     func send(msg: NodeMessage) {}

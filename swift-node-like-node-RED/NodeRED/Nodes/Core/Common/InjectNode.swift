@@ -8,7 +8,32 @@
 import AsyncAlgorithms
 import Foundation
 
-final class InjectNode: Codable, Node {
+fileprivate actor InjectState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
+final class InjectNode: Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
@@ -88,25 +113,29 @@ final class InjectNode: Codable, Node {
             x, y, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
+    private let state = InjectState()
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+    }
+
+    func execute() async {
         // Prevent multiple concurrent executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("InjectNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
-            if !isRunning { return }
+            if await !isRunning { return }
 
             do {
                 if once {
@@ -114,9 +143,9 @@ final class InjectNode: Codable, Node {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     let msg = createMessage()
-                    send(msg: msg)
+                    await send(msg: msg)
                 }
 
                 guard let repeatValue = `repeat`, repeatValue > 0 else {
@@ -127,9 +156,9 @@ final class InjectNode: Codable, Node {
                 for await _ in AsyncTimerSequence(
                     interval: .seconds(repeatValue), clock: .suspending)
                 {
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     let msg = createMessage()
-                    send(msg: msg)
+                    await send(msg: msg)
                 }
             } catch is CancellationError {
                 // Task was canceled, exit gracefully
@@ -138,31 +167,25 @@ final class InjectNode: Codable, Node {
                 // Handle other errors (e.g., timer failure)
                 print("InjectNode execution error: \(error)")
                 // Optionally stop running on unexpected errors
-                isRunning = false
+                await state.setIsRunning(false)
                 return
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-
-        if let task = currentTask {
-            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
-        }
-        currentTask = nil
+        await state.setIsRunning(false)
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
     }
 
     func receive(msg: NodeMessage) {}
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
     private func createMessage() -> NodeMessage {
@@ -229,7 +252,7 @@ final class InjectNode: Codable, Node {
     }
 
     /// Convert string to number (Int or Double)
-    private func convertToNumber(_ value: String) -> Any? {
+    private func convertToNumber(_ value: String) -> (any Sendable)? {
         if let intValue = Int(value) {
             return intValue
         } else if let doubleValue = Double(value) {

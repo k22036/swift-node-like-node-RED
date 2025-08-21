@@ -7,16 +7,44 @@
 
 import Foundation
 
-final class Flow {
+fileprivate actor FlowState: Sendable {
     private var nodes: [String: Node] = [:]
-    private var tab: [String: Tab] = [:]
-    private var config: [String: MQTTBroker] = [:]
+    private var tabs: [String: Tab] = [:]
+    private var configs: [String: MQTTBroker] = [:]
 
-    private struct RawNode: Codable {
+    fileprivate func setNode(_ node: Node) {
+        nodes[node.id] = node
+    }
+    fileprivate func getNode(by id: String) -> Node? {
+        return nodes[id]
+    }
+    fileprivate func getNodes() -> [Node] {
+        return Array(nodes.values)
+    }
+
+    fileprivate func setTab(_ tab: Tab) {
+        tabs[tab.id] = tab
+    }
+    fileprivate func getTab(by id: String) -> Tab? {
+        return tabs[id]
+    }
+
+    fileprivate func setConfig(_ config: MQTTBroker) {
+        configs[config.id] = config
+    }
+    fileprivate func getConfig(by id: String) -> MQTTBroker? {
+        return configs[id]
+    }
+}
+
+final class Flow: Sendable {
+    private let state = FlowState()
+
+    private struct RawNode: Codable, Sendable {
         let type: String
     }
 
-    init(flowJson: String) throws {
+    init(flowJson: String) async throws {
         if flowJson.isEmpty {
             throw NSError(
                 domain: "FlowError", code: 1,
@@ -45,11 +73,11 @@ final class Flow {
             let rawNode = try JSONDecoder().decode(RawNode.self, from: jsonData)
 
             if rawNode.type == FlowType.tab.rawValue {
-                addTab(from: jsonData)
+                await addTab(from: jsonData)
             } else if rawNode.type == ConfigType.mqttBroker.rawValue {
-                addConfig(from: jsonData)
+                await addConfig(from: jsonData)
             } else if let node = createNode(jsonData: jsonData, type: rawNode.type) {
-                addNode(node)
+                await addNode(node)
             } else {
                 print("Unsupported node type: \(rawNode.type)")
                 continue
@@ -57,30 +85,30 @@ final class Flow {
         }
     }
 
-    private func addTab(from jsonData: Data) {
+    private func addTab(from jsonData: Data) async {
         do {
             let tab = try JSONDecoder().decode(Tab.self, from: jsonData)
-            self.tab[tab.id] = tab
+            await state.setTab(tab)
         } catch {
             print("Error decoding Tab: \(error)")
         }
     }
 
-    func getTab(by id: String) -> Tab? {
-        return tab[id]
+    func getTab(by id: String) async -> Tab? {
+        return await state.getTab(by: id)
     }
 
-    private func addConfig(from jsonData: Data) {
+    private func addConfig(from jsonData: Data) async {
         do {
             let config = try JSONDecoder().decode(MQTTBroker.self, from: jsonData)
-            self.config[config.id] = config
+            await state.setConfig(config)
         } catch {
             print("Error decoding config: \(error)")
         }
     }
 
-    func getConfig(by id: String) -> MQTTBroker? {
-        return config[id]
+    func getConfig(by id: String) async -> MQTTBroker? {
+        return await state.getConfig(by: id)
     }
 
     private func createNode(jsonData: Data, type: String) -> Node? {
@@ -135,22 +163,22 @@ final class Flow {
         return nil
     }
 
-    func addNode(_ node: Node) {
-        nodes[node.id] = node
+    func addNode(_ node: Node) async {
+        await state.setNode(node)
     }
 
-    func getNode(by id: String) -> Node? {
-        return nodes[id]
+    func getNode(by id: String) async -> Node? {
+        return await state.getNode(by: id)
     }
 
     /// Returns the first CameraNode in this flow, if any
-    func getCameraNode() -> CameraNode? {
-        return nodes.values.compactMap { $0 as? CameraNode }.first
+    func getCameraNode() async -> CameraNode? {
+        return await state.getNodes().first(where: { $0 is CameraNode }) as? CameraNode
     }
 
-    func start() {
-        initialize()
-        execute()
+    func start() async {
+        await initialize()
+        await execute()
     }
 
     func stop() async {
@@ -159,39 +187,39 @@ final class Flow {
 
     // Extracted helpers for node lifecycle operations
     /// Applies the given action to all nodes that are available (not on a disabled tab).
-    private func forEachAvailableNode(_ action: (Node) -> Void) {
-        for node in nodes.values where isAvailableNode(node: node) {
-            action(node)
+    private func forEachAvailableNode(_ action: (Node) async -> Void) async {
+        for node in await state.getNodes() where await isAvailableNode(node: node) {
+            await action(node)
         }
     }
 
     /// Determines whether a node should participate based on its tab's disabled state.
-    private func isAvailableNode(node: Node) -> Bool {
-        if let tab = tab[node.z], tab.disabled {
+    private func isAvailableNode(node: Node) async -> Bool {
+        if let tab = await getTab(by: node.z), tab.disabled {  // z: ex. tab ID
             return false
         }
         return true
     }
 
     /// Applies the given action to all nodes regardless of availability.
-    private func forEachNode(_ action: (Node) -> Void) {
-        for node in nodes.values {
+    private func forEachNode(_ action: (Node) -> Void) async {
+        for node in await state.getNodes() {
             action(node)
         }
     }
 
-    func initialize() {
-        forEachAvailableNode { $0.initialize(flow: self) }
+    func initialize() async {
+        await forEachAvailableNode { await $0.initialize(flow: self) }
     }
 
-    func execute() {
-        forEachAvailableNode { $0.execute() }
+    func execute() async {
+        await forEachAvailableNode { await $0.execute() }
     }
 
     func terminate() async {
         let semaphore = AsyncSemaphore(value: 10)
         await withTaskGroup(of: Void.self) { group in
-            for node in nodes.values {
+            for node in await state.getNodes() {
                 group.addTask {
                     await semaphore.wait()
                     await node.terminate()
@@ -201,15 +229,15 @@ final class Flow {
         }
     }
 
-    func routeMessage(from sourceNode: Node, message: NodeMessage) {
+    func routeMessage(from sourceNode: Node, message: NodeMessage) async {
         let outputIndex = 0
         let targetNodeIds = sourceNode.wires[outputIndex]
 
         for nodeId in targetNodeIds {
-            if let targetNode = nodes[nodeId] {
+            if let targetNode = await getNode(by: nodeId) {
                 // メッセージクローンを作成
                 let clonedMessage = cloneMessage(message)
-                targetNode.receive(msg: clonedMessage)
+                await targetNode.receive(msg: clonedMessage)
             }
         }
     }

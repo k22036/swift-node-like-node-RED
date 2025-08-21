@@ -107,47 +107,47 @@ struct FlowTests {
         """
     @Test func init_flow() async throws {
         do {
-            let flow = try Flow(flowJson: flowJson)
-            print("✅ フローの初期化に成功しました！")
+            let flow = try await Flow(flowJson: flowJson)
+            Logger.debugLog("✅ フローの初期化に成功しました！")
 
-            #expect(flow.getNode(by: "f0bd46d65aaae42b") != nil)
-            #expect(flow.getNode(by: "22927becb75bd1f3") != nil)
-            #expect(flow.getNode(by: "4df62d3e39f09ef1") != nil)
+            #expect(await flow.getNode(by: "f0bd46d65aaae42b") != nil)
+            #expect(await flow.getNode(by: "22927becb75bd1f3") != nil)
+            #expect(await flow.getNode(by: "4df62d3e39f09ef1") != nil)
 
-            #expect(flow.getNode(by: "f0bd46d65aaae42b") is DebugNode)
-            #expect(flow.getNode(by: "22927becb75bd1f3") is InjectNode)
-            #expect(flow.getNode(by: "4df62d3e39f09ef1") is DebugNode)
+            #expect(await flow.getNode(by: "f0bd46d65aaae42b") is DebugNode)
+            #expect(await flow.getNode(by: "22927becb75bd1f3") is InjectNode)
+            #expect(await flow.getNode(by: "4df62d3e39f09ef1") is DebugNode)
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
 
     @Test func start_flow() async throws {
-        let flow = try Flow(flowJson: flowJson)
-        print("✅ フローの初期化に成功しました！")
+        let flow = try await Flow(flowJson: flowJson)
+        Logger.debugLog("✅ フローの初期化に成功しました！")
 
-        flow.start()
-        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
-        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
-        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
+        await flow.start()
+        #expect(await flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
+        #expect(await flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
+        #expect(await flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
     }
 
     @Test func stop_flow() async throws {
-        let flow = try Flow(flowJson: flowJson)
-        print("✅ フローの初期化に成功しました！")
+        let flow = try await Flow(flowJson: flowJson)
+        Logger.debugLog("✅ フローの初期化に成功しました！")
 
-        flow.start()
-        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
-        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
-        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
+        await flow.start()
+        #expect(await flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
+        #expect(await flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
+        #expect(await flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
 
         try await Task.sleep(nanoseconds: 2 * 1_000_000_000)  // 1秒待機
 
         await flow.stop()
-        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
-        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
-        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)
+        #expect(await flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
+        #expect(await flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
+        #expect(await flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)
     }
 }
