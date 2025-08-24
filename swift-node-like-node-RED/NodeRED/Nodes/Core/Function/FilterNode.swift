@@ -68,7 +68,7 @@ fileprivate actor FilterState: NodeState, Sendable {
     fileprivate let previous = Previous()
 }
 
-final class FilterNode: Codable, Node {
+final class FilterNode: Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
