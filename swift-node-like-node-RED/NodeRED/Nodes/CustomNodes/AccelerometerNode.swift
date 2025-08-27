@@ -1,9 +1,39 @@
 import AsyncAlgorithms
-import CoreMotion
+@preconcurrency import CoreMotion
 import Foundation
 
+private actor AccelerometerState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+    fileprivate var lastSentTime: Date?
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setLastSentTime(_ time: Date) {
+        self.lastSentTime = time
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
 /// Custom node that retrieves and sends device accelerometer information
-final class AccelerometerNode: NSObject, Codable, Node {
+final class AccelerometerNode: NSObject, Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String
@@ -63,25 +93,28 @@ final class AccelerometerNode: NSObject, Codable, Node {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
-    var motionManager: CMMotionManager = CMMotionManager()
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
-    private var lastSentTime: Date?
+    private let state = AccelerometerState()
+    private let motionManager: CMMotionManager = CMMotionManager()
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+    }
+
+    func execute() async {
         // Prevent multiple executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("AccelerometerNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
             do {
@@ -89,7 +122,7 @@ final class AccelerometerNode: NSObject, Codable, Node {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     requestAccelerometer()
                 }
                 guard let interval = `repeat`, interval > 0 else {
@@ -97,7 +130,7 @@ final class AccelerometerNode: NSObject, Codable, Node {
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     requestAccelerometer()
                 }
             } catch is CancellationError {
@@ -105,27 +138,21 @@ final class AccelerometerNode: NSObject, Codable, Node {
                 return
             } catch {
                 print("AccelerometerNode: Error in task execution - \(error)")
-                isRunning = false
+                await state.setIsRunning(false)
                 motionManager.stopAccelerometerUpdates()
                 return
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
+        await state.setIsRunning(false)
         motionManager.stopAccelerometerUpdates()
-
-        if let task = currentTask {
-            _ = await task.value  // Wait for the task to complete
-        }
-        currentTask = nil
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
         motionManager.stopAccelerometerUpdates()
     }
 
@@ -133,35 +160,41 @@ final class AccelerometerNode: NSObject, Codable, Node {
         // This node does not process incoming messages
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
     private func requestAccelerometer() {
         guard motionManager.isAccelerometerAvailable else { return }
         motionManager.startAccelerometerUpdates(to: OperationQueue.current ?? OperationQueue.main) {
             [weak self] data, error in
-            guard let self = self, self.isRunning, let accel = data?.acceleration else { return }
-            // Debounce to prevent rapid-fire messages
-            if let lastSent = self.lastSentTime, Date().timeIntervalSince(lastSent) < 0.1 {
-                return
+            Task { @Sendable [weak self] in
+                guard let self = self, await self.isRunning, let accel = data?.acceleration else {
+                    return
+                }
+                // Debounce to prevent rapid-fire messages
+                if let lastSent = await self.state.lastSentTime,
+                    Date().timeIntervalSince(lastSent) < 0.1
+                {
+                    return
+                }
+                let payload: [String: Double] = [
+                    "x": accel.x,
+                    "y": accel.y,
+                    "z": accel.z,
+                ]
+                let msg = NodeMessage(payload: payload)
+                await self.send(msg: msg)
+                await self.state.setLastSentTime(Date())
+                self.motionManager.stopAccelerometerUpdates()
             }
-            let payload: [String: Double] = [
-                "x": accel.x,
-                "y": accel.y,
-                "z": accel.z,
-            ]
-            let msg = NodeMessage(payload: payload)
-            self.send(msg: msg)
-            self.lastSentTime = Date()
-            self.motionManager.stopAccelerometerUpdates()
         }
     }
 
     /// For testing: simulate an accelerometer update
-    func simulateAccelerometer(x: Double, y: Double, z: Double) {
+    func simulateAccelerometer(x: Double, y: Double, z: Double) async {
         let payload: [String: Double] = ["x": x, "y": y, "z": z]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 }
