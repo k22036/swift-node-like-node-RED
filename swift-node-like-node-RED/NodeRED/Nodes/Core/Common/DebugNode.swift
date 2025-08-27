@@ -7,7 +7,7 @@
 
 import Foundation
 
-fileprivate actor DebugState: NodeState, Sendable {
+private actor DebugState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var isRunning: Bool = false
 

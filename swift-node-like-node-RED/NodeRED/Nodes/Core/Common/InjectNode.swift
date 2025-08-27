@@ -8,7 +8,7 @@
 import AsyncAlgorithms
 import Foundation
 
-fileprivate actor InjectState: NodeState, Sendable {
+private actor InjectState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var isRunning: Bool = false
 

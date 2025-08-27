@@ -4,7 +4,7 @@ import AsyncAlgorithms
 import Foundation
 import UIKit
 
-fileprivate actor CameraState: NodeState, Sendable {
+private actor CameraState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var isRunning: Bool = false
 
@@ -29,7 +29,7 @@ fileprivate actor CameraState: NodeState, Sendable {
     }
 }
 
-fileprivate actor CaptureState: Sendable {
+private actor CaptureState: Sendable {
     fileprivate var shouldCaptureFrame = false  // flag to capture next frame
 
     fileprivate func setShouldCaptureFrame(_ capture: Bool) {

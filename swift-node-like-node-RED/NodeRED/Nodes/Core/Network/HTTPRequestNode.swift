@@ -7,7 +7,7 @@
 
 import Foundation
 
-fileprivate actor HTTPRequestState: NodeState, Sendable {
+private actor HTTPRequestState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var isRunning: Bool = false
 

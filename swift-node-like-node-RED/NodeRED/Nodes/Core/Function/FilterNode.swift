@@ -7,7 +7,7 @@
 
 import Foundation
 
-fileprivate actor FilterState: NodeState, Sendable {
+private actor FilterState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var isRunning: Bool = false
 
@@ -201,8 +201,8 @@ final class FilterNode: Codable, Sendable, Node {
 
     func terminate() async {
         await state.setIsRunning(false)
-        await state.finishCurrentTask()
         await state.finishMessageStream()
+        await state.finishCurrentTask()
     }
 
     deinit {

@@ -9,7 +9,7 @@ import Foundation
 @preconcurrency import MQTTNIO
 import NIO
 
-fileprivate actor MQTTInState: NodeState, Sendable {
+private actor MQTTInState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var config: MQTTBroker?
 
@@ -273,7 +273,7 @@ final class MQTTInNode: Codable, Sendable, Node {
     }
 }
 
-fileprivate actor MQTTOutState: NodeState, Sendable {
+private actor MQTTOutState: NodeState, Sendable {
     fileprivate weak var flow: Flow?
     fileprivate var config: MQTTBroker?
 
