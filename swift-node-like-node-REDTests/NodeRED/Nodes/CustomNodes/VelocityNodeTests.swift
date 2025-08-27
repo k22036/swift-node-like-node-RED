@@ -60,17 +60,17 @@ struct VelocityNodeTests {
         }
         let node = try JSONDecoder().decode([VelocityNode].self, from: data).first!
         let testNode = try TestNode(id: "test-node")
-        let flow = try Flow(flowJson: "[]")
-        flow.addNode(node)
-        flow.addNode(testNode)
+        let flow = try await Flow(flowJson: "[]")
+        await flow.addNode(node)
+        await flow.addNode(testNode)
 
-        node.initialize(flow: flow)
-        node.simulateVelocity(12.34)
+        await node.initialize(flow: flow)
+        await node.simulateVelocity(12.34)
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
         await node.terminate()
 
-        #expect(testNode.buffer.count == 1)
-        if let msg = testNode.buffer.first {
+        #expect(await testNode.buffer.count == 1)
+        if let msg = await testNode.buffer.first {
             guard let payload = msg.payload as? [String: Double] else {
                 fatalError("Payload is not a dictionary")
             }

@@ -1,9 +1,86 @@
 import AsyncAlgorithms
-import CoreLocation
+@preconcurrency import CoreLocation
 import Foundation
 
+private actor VelocityState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
+private actor LocationState: Sendable {
+    private var backgroundSession: CLBackgroundActivitySession?
+
+    fileprivate var lastSentTime: Date?
+    private var lastVelocity = 0.0
+    fileprivate var isRequested = false
+
+    fileprivate func initBackgroundSession() {
+        self.backgroundSession = CLBackgroundActivitySession()
+    }
+
+    fileprivate func finishBackgroundSession() {
+        backgroundSession?.invalidate()
+    }
+
+    fileprivate func setLastSendTime(_ lastSendTime: Date) {
+        self.lastSentTime = lastSendTime
+    }
+
+    fileprivate func setLastVelocity(_ lastVelocity: Double) {
+        self.lastVelocity = lastVelocity
+    }
+
+    fileprivate func setIsRequested(_ isRequested: Bool) {
+        self.isRequested = isRequested
+    }
+}
+
+private final class LocationManager: Sendable {
+    private let locationManager: CLLocationManager = CLLocationManager()
+
+    @MainActor
+    fileprivate init() {
+        // locationManagerをmainスレッドで初期化するために必要
+    }
+
+    fileprivate func initLocationManager(delegate: CLLocationManagerDelegate) {
+        locationManager.delegate = delegate
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.distanceFilter = kCLDistanceFilterNone
+        locationManager.allowsBackgroundLocationUpdates = true
+    }
+
+    fileprivate func startUpdateLocation() {
+        locationManager.startUpdatingLocation()
+    }
+
+    fileprivate func stopUpdateLocation() {
+        locationManager.stopUpdatingLocation()
+    }
+}
+
 /// Custom node that retrieves and sends device velocity information
-final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
+final class VelocityNode: NSObject, Codable, Node, Sendable, CLLocationManagerDelegate {
     let id: String
     let type: String
     let z: String
@@ -61,121 +138,117 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
-    var locationManager: CLLocationManager = CLLocationManager()
-    private var backgroundSession: CLBackgroundActivitySession?
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
-    private var lastSentTime: Date?
+    private let state = VelocityState()
+    private let locationState = LocationState()
+    nonisolated(unsafe) private var locationManager: LocationManager?
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
-        locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-        locationManager.distanceFilter = kCLDistanceFilterNone
-        locationManager.allowsBackgroundLocationUpdates = true
-        self.backgroundSession = CLBackgroundActivitySession()
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+        self.locationManager = await LocationManager()
+        locationManager?.initLocationManager(delegate: self)
+        await locationState.initBackgroundSession()
+    }
+
+    func execute() async {
         // Prevent multiple concurrent executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("VelocityNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
-            locationManager.startUpdatingLocation()
+            locationManager?.startUpdateLocation()
 
             do {
                 if once {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
-                    requestVelocity()
+                    if await !isRunning { return }
+                    await requestVelocity()
                 }
                 guard let interval = `repeat`, interval > 0 else {
                     return
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
-                    requestVelocity()
+                    if await !isRunning { return }
+                    await requestVelocity()
                 }
             } catch is CancellationError {
                 // Task was cancelled, do nothing
                 return
             } catch {
                 print("VelocityNode execution error: \(error)")
-                isRunning = false
-                locationManager.stopUpdatingLocation()
-                backgroundSession?.invalidate()
-                locationManager.delegate = nil
+                await state.setIsRunning(false)
+                locationManager?.stopUpdateLocation()
+                await locationState.finishBackgroundSession()
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-        locationManager.stopUpdatingLocation()
-        backgroundSession?.invalidate()
-
-        if let task = currentTask {
-            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
-        }
-        currentTask = nil
+        await state.setIsRunning(false)
+        await locationState.finishBackgroundSession()
+        locationManager?.stopUpdateLocation()
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
-        locationManager.stopUpdatingLocation()
-        backgroundSession?.invalidate()
-        locationManager.delegate = nil
+        locationManager?.stopUpdateLocation()
     }
 
     func receive(msg: NodeMessage) {
         // This node does not process incoming messages
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
-    private var lastVelocity = 0.0
-    private var isRequested = false
-
-    private func requestVelocity() {
+    private func requestVelocity() async {
         guard CLLocationManager.locationServicesEnabled() else { return }
-        isRequested = true
+        await locationState.setIsRequested(true)
     }
 
     // CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRunning, let location = locations.last, location.speed >= 0 else { return }
-        lastVelocity = location.speed
+        Task.detached { @Sendable [weak self] in
+            guard let self = self else { return }
 
-        // Debounce to prevent rapid-fire messages
-        if let lastSent = self.lastSentTime, Date().timeIntervalSince(lastSent) < 0.02 {
-            return
-        }
-        if !isRequested {
-            return
-        }
+            guard await isRunning, let location = locations.last, location.speed >= 0 else {
+                return
+            }
+            await locationState.setLastVelocity(location.speed)
 
-        let payload: [String: Double] = [
-            "velocity": location.speed  // m/s
-        ]
-        let msg = NodeMessage(payload: payload)
-        send(msg: msg)
-        self.lastSentTime = Date()
-        isRequested = false
+            // Debounce to prevent rapid-fire messages
+            if let lastSent = await self.locationState.lastSentTime,
+                Date().timeIntervalSince(lastSent) < 0.02
+            {
+                return
+            }
+            if await !self.locationState.isRequested {
+                return
+            }
+
+            let payload: [String: Double] = [
+                "velocity": location.speed  // m/s
+            ]
+            let msg = NodeMessage(payload: payload)
+            await send(msg: msg)
+            await self.locationState.setLastSendTime(Date())
+            await self.locationState.setIsRequested(false)
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -184,9 +257,9 @@ final class VelocityNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     /// For testing: simulate a velocity update
-    func simulateVelocity(_ velocity: Double) {
+    func simulateVelocity(_ velocity: Double) async {
         let payload: [String: Double] = ["velocity": velocity]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 }
