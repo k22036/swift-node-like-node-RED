@@ -33,7 +33,7 @@ private actor MagnetometerState: NodeState, Sendable {
 }
 
 /// Custom node that retrieves and sends device magnetometer (geomagnetic) information
-final class MagnetometerNode: NSObject, Codable, Node {
+final class MagnetometerNode: NSObject, Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String

@@ -33,7 +33,7 @@ private actor PressureState: NodeState, Sendable {
 }
 
 /// Custom node that retrieves and sends device pressure (barometric) information
-final class PressureNode: NSObject, Codable, Node {
+final class PressureNode: NSObject, Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String

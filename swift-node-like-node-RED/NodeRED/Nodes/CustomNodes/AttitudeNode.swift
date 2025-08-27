@@ -33,7 +33,7 @@ private actor AttitudeState: NodeState, Sendable {
 }
 
 /// Custom node that retrieves and sends device attitude (pitch, roll, yaw) information
-final class AttitudeNode: NSObject, Codable, Node {
+final class AttitudeNode: NSObject, Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String
