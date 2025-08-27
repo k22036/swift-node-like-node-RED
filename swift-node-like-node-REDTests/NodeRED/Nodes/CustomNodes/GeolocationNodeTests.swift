@@ -82,25 +82,26 @@ struct GeolocationNodeTests {
         }
         let node = try JSONDecoder().decode([GeolocationNode].self, from: data).first!
         let testNode = try TestNode(id: "test-node")
-        let flow = try Flow(flowJson: "[]")
-        flow.addNode(node)
-        flow.addNode(testNode)
+        let flow = try await Flow(flowJson: "[]")
+        await flow.addNode(node)
+        await flow.addNode(testNode)
 
         // Initialize node
-        node.initialize(flow: flow)
+        await node.initialize(flow: flow)
 
         // Simulate a location update
-        node.simulateLocation(latitude: 12.34, longitude: 56.78)
+        await node.simulateLocation(latitude: 12.34, longitude: 56.78)
         try await Task.sleep(nanoseconds: UInt64(1.1 * 1_000_000_000))
-        node.simulateLocation(latitude: 12.34, longitude: 56.78)
+        await node.simulateLocation(latitude: 12.34, longitude: 56.78)
 
         // Allow asynchronous send
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
 
         await node.terminate()
 
-        #expect(testNode.buffer.count == 2)
-        for msg in testNode.buffer {
+        print("buffer count:", await testNode.buffer.count)
+        #expect(await testNode.buffer.count == 2)
+        for msg in await testNode.buffer {
             guard let payload = msg.payload as? [String: Double] else {
                 #expect(Bool(false), "Payload is not a dictionary")
                 continue
@@ -138,24 +139,25 @@ struct GeolocationNodeTests {
         }
         let node = try JSONDecoder().decode([GeolocationNode].self, from: data).first!
         let testNode = try TestNode(id: "test-node-update")
-        let flow = try Flow(flowJson: "[]")
-        flow.addNode(node)
-        flow.addNode(testNode)
+        let flow = try await Flow(flowJson: "[]")
+        await flow.addNode(node)
+        await flow.addNode(testNode)
 
         // Initialize and execute node
-        node.initialize(flow: flow)
-        node.execute()
+        await node.initialize(flow: flow)
+        await node.execute()
 
         // Simulate a location update
-        node.simulateLocation(latitude: 35.681236, longitude: 139.767125)  // Tokyo Station
+        await node.simulateLocation(latitude: 35.681236, longitude: 139.767125)  // Tokyo Station
 
         // Allow asynchronous send
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
 
         await node.terminate()
 
-        #expect(testNode.buffer.count == 1)
-        if let msg = testNode.buffer.first {
+        print("buffer count:", await testNode.buffer.count)
+        #expect(await testNode.buffer.count == 1)
+        if let msg = await testNode.buffer.first {
             guard let payload = msg.payload as? [String: Double] else {
                 #expect(Bool(false), "Payload is not a dictionary")
                 return
@@ -193,29 +195,29 @@ struct GeolocationNodeTests {
         }
         let node = try JSONDecoder().decode([GeolocationNode].self, from: data).first!
         let testNode = try TestNode(id: "test-node-area")
-        let flow = try Flow(flowJson: "[]")
-        flow.addNode(node)
-        flow.addNode(testNode)
+        let flow = try await Flow(flowJson: "[]")
+        await flow.addNode(node)
+        await flow.addNode(testNode)
 
         // Initialize and execute node
-        node.initialize(flow: flow)
+        await node.initialize(flow: flow)
         // In a real scenario, execute() would be called and CLMonitor would handle events.
         // For testing, we will call the simulation method directly.
 
         // Simulate entering the area
-        node.simulateAreaEvent(state: .satisfied)
+        await node.simulateAreaEvent(state: .satisfied)
         try await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
 
         // Simulate exiting the area
-        node.simulateAreaEvent(state: .unsatisfied)
+        await node.simulateAreaEvent(state: .unsatisfied)
         try await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
 
         await node.terminate()
 
-        #expect(testNode.buffer.count == 2)
-        if testNode.buffer.count == 2 {
-            let enterMsg = testNode.buffer[0]
-            let exitMsg = testNode.buffer[1]
+        #expect(await testNode.buffer.count == 2)
+        if await testNode.buffer.count == 2 {
+            let enterMsg = await testNode.buffer[0]
+            let exitMsg = await testNode.buffer[1]
 
             guard let enterPayload = enterMsg.payload as? [String: String],
                 let exitPayload = exitMsg.payload as? [String: String]
