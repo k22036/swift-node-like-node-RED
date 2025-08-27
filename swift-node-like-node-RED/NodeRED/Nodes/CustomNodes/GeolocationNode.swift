@@ -252,7 +252,7 @@ final class GeolocationNode: NSObject, Codable, Sendable, Node, CLLocationManage
         }
     }
 
-    var identifier: String {
+    private var identifier: String {
         "GeolocationArea, centerLat: \(centerLat), centerLon: \(centerLon), radius: \(radius)"
     }
 
@@ -275,7 +275,7 @@ final class GeolocationNode: NSObject, Codable, Sendable, Node, CLLocationManage
             guard let self = self else { return }
 
             if mode == ModeType.update.rawValue {
-                locationManager?.stopUpdateLocation()
+                locationManager?.startUpdateLocation()
                 return
             } else if mode == ModeType.area.rawValue {
                 if await locationState.monitor == nil {
@@ -375,20 +375,20 @@ final class GeolocationNode: NSObject, Codable, Sendable, Node, CLLocationManage
         await state.flow?.routeMessage(from: self, message: msg)
     }
 
-    func sendEnter() async {
+    private func sendEnter() async {
         let payload: [String: String] = ["event": "enter"]
         let msg = NodeMessage(payload: payload)
         await send(msg: msg)
     }
 
-    func sendExit() async {
+    private func sendExit() async {
         let payload: [String: String] = ["event": "exit"]
         let msg = NodeMessage(payload: payload)
         await send(msg: msg)
     }
 
     // keep alive event sender
-    func sendKeepAlive() async {
+    private func sendKeepAlive() async {
         guard await isRunning else { return }
 
         // 現在位置を取得し、エリア内判定
