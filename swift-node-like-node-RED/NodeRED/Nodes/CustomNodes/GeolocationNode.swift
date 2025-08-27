@@ -349,6 +349,8 @@ final class GeolocationNode: NSObject, Codable, Sendable, Node, CLLocationManage
             } catch {
                 print("GeolocationNode execution error: \(error)")
                 await state.setIsRunning(false)
+                locationManager?.stopUpdateLocation()
+                await locationState.finishBackgroundSession()
             }
 
         }
@@ -365,6 +367,7 @@ final class GeolocationNode: NSObject, Codable, Sendable, Node, CLLocationManage
     }
 
     deinit {
+        locationManager?.stopUpdateLocation()
     }
 
     func receive(msg: NodeMessage) {
