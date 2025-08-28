@@ -1,9 +1,74 @@
 import AsyncAlgorithms
-import CoreLocation
+@preconcurrency import CoreLocation
 import Foundation
 
+private actor AltitudeState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
+private actor LocationState: Sendable {
+    private var backgroundSession: CLBackgroundActivitySession?
+    fileprivate var lastSentTime: Date?
+
+    fileprivate func initBackgroundSession() {
+        self.backgroundSession = CLBackgroundActivitySession()
+    }
+
+    fileprivate func finishBackgroundSession() {
+        backgroundSession?.invalidate()
+    }
+
+    fileprivate func setLastSendTime(_ lastSendTime: Date) {
+        self.lastSentTime = lastSendTime
+    }
+}
+
+private final class LocationManager: Sendable {
+    private let locationManager: CLLocationManager = CLLocationManager()
+
+    @MainActor
+    fileprivate init() {
+        // locationManagerをmainスレッドで初期化するために必要
+    }
+
+    fileprivate func initLocationManager(delegate: CLLocationManagerDelegate) {
+        locationManager.delegate = delegate
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.allowsBackgroundLocationUpdates = true
+    }
+
+    fileprivate func stopUpdateLocation() {
+        locationManager.stopUpdatingLocation()
+    }
+
+    fileprivate func requestLocation() {
+        locationManager.requestLocation()
+    }
+}
+
 /// Custom node that retrieves and sends device altitude (elevation) information
-final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
+final class AltitudeNode: NSObject, Codable, Node, Sendable, CLLocationManagerDelegate {
     let id: String
     let type: String
     let z: String
@@ -61,30 +126,32 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
-    var locationManager: CLLocationManager = CLLocationManager()
-    private var backgroundSession: CLBackgroundActivitySession?
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
-    private var lastSentTime: Date?
+    private let state = AltitudeState()
+    private let locationState = LocationState()
+    nonisolated(unsafe) private var locationManager: LocationManager?
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
-        locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.allowsBackgroundLocationUpdates = true
-        self.backgroundSession = CLBackgroundActivitySession()
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+        locationManager = await LocationManager()
+        locationManager?.initLocationManager(delegate: self)
+        await locationState.initBackgroundSession()
+    }
+
+    func execute() async {
         // Prevent multiple executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("AltitudeNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
             do {
@@ -92,7 +159,7 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     requestAltitude()
                 }
                 guard let interval = `repeat`, interval > 0 else {
@@ -100,7 +167,7 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     requestAltitude()
                 }
             } catch is CancellationError {
@@ -108,62 +175,59 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
                 return
             } catch {
                 print("AltitudeNode: Error during execution - \(error)")
-                isRunning = false
-                locationManager.stopUpdatingLocation()
-                backgroundSession?.invalidate()
+                await state.setIsRunning(false)
+                locationManager?.stopUpdateLocation()
+                await locationState.finishBackgroundSession()
                 return
             }
 
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-        locationManager.stopUpdatingLocation()
-        backgroundSession?.invalidate()
-
-        if let task = currentTask {
-            _ = await task.value  // Wait for the task to complete
-        }
-        currentTask = nil
+        await state.setIsRunning(false)
+        await locationState.finishBackgroundSession()
+        locationManager?.stopUpdateLocation()
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
-        locationManager.stopUpdatingLocation()
-        backgroundSession?.invalidate()
-        locationManager.delegate = nil
+        locationManager?.stopUpdateLocation()
     }
 
     func receive(msg: NodeMessage) {
         // This node does not process incoming messages
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
     private func requestAltitude() {
         guard CLLocationManager.locationServicesEnabled() else { return }
-        locationManager.startUpdatingLocation()
+        locationManager?.requestLocation()
     }
 
     // CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRunning, let location = locations.last else { return }
-        // Debounce to prevent rapid-fire messages
-        if let lastSent = self.lastSentTime, Date().timeIntervalSince(lastSent) < 0.1 {
-            return
+        Task.detached { @Sendable [weak self] in
+            guard let self = self else { return }
+
+            guard await isRunning, let location = locations.last else { return }
+            // Debounce to prevent rapid-fire messages
+            if let lastSent = await self.locationState.lastSentTime,
+                Date().timeIntervalSince(lastSent) < 0.1
+            {
+                return
+            }
+            let payload: [String: Double] = [
+                "altitude": location.altitude
+            ]
+            let msg = NodeMessage(payload: payload)
+            await send(msg: msg)
+            await self.locationState.setLastSendTime(Date())
         }
-        let payload: [String: Double] = [
-            "altitude": location.altitude
-        ]
-        let msg = NodeMessage(payload: payload)
-        send(msg: msg)
-        self.lastSentTime = Date()
-        locationManager.stopUpdatingLocation()
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -172,9 +236,9 @@ final class AltitudeNode: NSObject, Codable, Node, CLLocationManagerDelegate {
     }
 
     /// For testing: simulate an altitude update
-    func simulateAltitude(_ altitude: Double) {
+    func simulateAltitude(_ altitude: Double) async {
         let payload: [String: Double] = ["altitude": altitude]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 }

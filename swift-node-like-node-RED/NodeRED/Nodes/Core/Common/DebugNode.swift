@@ -7,7 +7,46 @@
 
 import Foundation
 
-final class DebugNode: Codable, Node {
+private actor DebugState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    // AsyncStream continuation for event-driven message delivery
+    fileprivate var messageContinuation: AsyncStream<NodeMessage>.Continuation?
+    // AsyncStream for incoming messages as a computed property
+    fileprivate var messageStream: AsyncStream<NodeMessage> {
+        AsyncStream { continuation in
+            self.messageContinuation = continuation
+        }
+    }
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+
+    fileprivate func finishMessageStream() {
+        messageContinuation?.finish()
+        messageContinuation = nil
+    }
+}
+
+final class DebugNode: Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
@@ -57,63 +96,50 @@ final class DebugNode: Codable, Node {
             statusType, x, y, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
+    private let state = DebugState()
 
-    // AsyncStream continuation for event-driven message delivery
-    private var messageContinuation: AsyncStream<NodeMessage>.Continuation?
-    // AsyncStream for incoming messages
-    private lazy var messageStream: AsyncStream<NodeMessage> = AsyncStream { continuation in
-        self.messageContinuation = continuation
-    }
-
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
-
-        messageStream = AsyncStream { continuation in
-            messageContinuation = continuation
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
         }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+    }
+
+    func execute() async {
         // Prevent multiple executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("DebugNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
             // Process messages as they arrive
-            for await msg in messageStream where isRunning {
+            let messageStream = await state.messageStream
+            for await msg in messageStream where await isRunning {
                 logNodeMessage(msg: msg)
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-
-        if let task = currentTask {
-            _ = await task.value  // Wait for the task to complete
-        }
-        currentTask = nil
-        messageContinuation?.finish()  // Signal the end of the stream
+        await state.setIsRunning(false)
+        await state.finishMessageStream()
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
-        messageContinuation?.finish()
     }
 
-    func receive(msg: NodeMessage) {
-        guard isRunning else { return }
+    func receive(msg: NodeMessage) async {
+        guard await isRunning else { return }
         // Deliver message to the AsyncStream
-        messageContinuation?.yield(msg)
+        await state.messageContinuation?.yield(msg)
     }
 
     func send(msg: NodeMessage) {}

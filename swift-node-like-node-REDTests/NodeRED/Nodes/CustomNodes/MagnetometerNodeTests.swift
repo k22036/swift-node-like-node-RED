@@ -60,17 +60,17 @@ struct MagnetometerNodeTests {
         }
         let node = try JSONDecoder().decode([MagnetometerNode].self, from: data).first!
         let testNode = try TestNode(id: "test-node")
-        let flow = try Flow(flowJson: "[]")
-        flow.addNode(node)
-        flow.addNode(testNode)
+        let flow = try await Flow(flowJson: "[]")
+        await flow.addNode(node)
+        await flow.addNode(testNode)
 
-        node.initialize(flow: flow)
-        node.simulateMagnetometer(x: 1.1, y: 2.2, z: 3.3)
+        await node.initialize(flow: flow)
+        await node.simulateMagnetometer(x: 1.1, y: 2.2, z: 3.3)
         try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
         await node.terminate()
 
-        #expect(testNode.buffer.count == 1)
-        if let msg = testNode.buffer.first {
+        #expect(await testNode.buffer.count == 1)
+        if let msg = await testNode.buffer.first {
             guard let payload = msg.payload as? [String: Double] else {
                 fatalError("Payload is not a dictionary")
             }

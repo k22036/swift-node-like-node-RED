@@ -6,10 +6,46 @@
 //
 
 import Foundation
-import MQTTNIO
+@preconcurrency import MQTTNIO
 import NIO
 
-final class MQTTInNode: Codable, Node {
+private actor MQTTInState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var config: MQTTBroker?
+
+    // MQTTNIO client
+    fileprivate var client: MQTTClient?
+    fileprivate var version: MQTTClient.Version = .v3_1_1  // Default to MQTT 3.1.1
+
+    fileprivate var isRunning: Bool = false
+    fileprivate var listenerName: String?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setConfig(_ config: MQTTBroker) {
+        self.config = config
+    }
+
+    fileprivate func setClient(_ client: MQTTClient) {
+        self.client = client
+    }
+
+    fileprivate func setVersion(_ version: MQTTClient.Version) {
+        self.version = version
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setListenerName(_ name: String?) {
+        self.listenerName = name
+    }
+}
+
+final class MQTTInNode: Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
@@ -66,56 +102,58 @@ final class MQTTInNode: Codable, Node {
         case id, type, z, name, topic, qos, datatype, broker, nl, rap, rh, inputs, x, y, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    var listenerName: String?
-    private var config: MQTTBroker?
+    private let state = MQTTInState()
 
-    // MQTTNIO client
-    private var client: MQTTClient?
-    private var version: MQTTClient.Version = .v3_1_1  // Default to MQTT 3.1.1
-
-    deinit {
-        terminate()
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        self.config = flow.getConfig(by: self.broker)
-        isRunning = true
+    deinit {
+    }
+
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        let config = await flow.getConfig(by: self.broker)  // broker: configuration ID
+        guard let config else {
+            print("No configuration found for broker: \(broker)")
+            return
+        }
+        await state.setConfig(config)
+        await state.setIsRunning(true)
     }
 
     func execute() {
         Task {
-            if !isRunning { return }
+            if await !isRunning { return }
 
-            // Parse broker URL
-            guard let host = self.config?.broker else {
-                print("Invalid broker URL: \(broker)")
+            // Retrieve broker configuration
+            guard let config = await state.config else {
+                print("MQTT configuration not found for broker: \(broker)")
                 return
             }
-            guard let port = self.config?.port else {
-                print("Invalid port for broker: \(broker)")
-                return
-            }
+
             let identifier = "MQTT_" + self.id
-
+            var version: MQTTClient.Version = .v3_1_1  // Default to MQTT 3.1.1
             // Configure MQTT client
-            if config?.protocolVersion == "5" {
+            if config.protocolVersion == "5" {
                 version = .v5_0
+                await state.setVersion(version)
             }
-            let keepalive = Int64(config?.keepalive ?? "60") ?? 60
+            let keepalive = Int64(config.keepalive) ?? 60
             let clientConfig = MQTTClient.Configuration(
                 version: version,
                 keepAliveInterval: .seconds(keepalive))
 
             // create MQTT client
-            client = MQTTClient(
-                host: host,
-                port: port,
+            let client = MQTTClient(
+                host: config.broker,  // broker: broker host URL
+                port: config.port,
                 identifier: identifier,
                 eventLoopGroupProvider: .shared(.singletonNIOTSEventLoopGroup),
                 configuration: clientConfig)
+            await state.setClient(client)
 
             // Connect to the MQTT broker
             do {
@@ -138,15 +176,15 @@ final class MQTTInNode: Codable, Node {
         }
     }
 
-    func terminate() {
-        isRunning = false
+    func terminate() async {
+        await state.setIsRunning(false)
         // Disconnect and shutdown
         Task { [weak self] in
             guard let self = self else { return }
             do {
                 try await unsubscribe()
                 await disconnect()
-                try client?.syncShutdownGracefully()
+                try await state.client?.syncShutdownGracefully()
             } catch {
                 print("Error during termination: \(error)")
             }
@@ -154,53 +192,42 @@ final class MQTTInNode: Codable, Node {
     }
 
     func connect() async throws -> Bool {
-        guard let client = client else {
-            print("MQTT client is not initialized.")
-            return false
-        }
-
-        if version == .v5_0 {
-            _ = try await client.v5.connect()
-            return client.isActive()
+        if await state.version == .v5_0 {
+            _ = try await state.client?.v5.connect()
+            return await state.client?.isActive() ?? false
         } else {
-            _ = try await client.connect()
-            return client.isActive()
+            _ = try await state.client?.connect()
+            return await state.client?.isActive() ?? false
         }
     }
 
     func disconnect() async {
-        guard let client = client else {
-            print("MQTT client is not initialized.")
-            return
-        }
-
-        if version == .v5_0 {
-            _ = try? await client.v5.disconnect()
-        } else {
-            _ = try? await client.disconnect()
+        do {
+            if await state.version == .v5_0 {
+                _ = try await state.client?.v5.disconnect()
+            } else {
+                _ = try await state.client?.disconnect()
+            }
+        } catch {
+            print("Error during disconnect: \(error)")
         }
     }
 
     func subscribe() async throws {
-        guard let client = client else {
-            print("MQTT client is not initialized.")
-            return
-        }
-
-        if version == .v5_0 {
+        if await state.version == .v5_0 {
             let info = MQTTSubscribeInfoV5(
                 topicFilter: self.topic, qos: MQTTQoS(rawValue: UInt8(self.qos)) ?? .atMostOnce)
-            _ = try await client.v5.subscribe(to: [info])
+            _ = try await state.client?.v5.subscribe(to: [info])
             print("Subscribed to topic: \(self.topic) with QoS: \(self.qos)")
         } else {
             let info = MQTTSubscribeInfo(
                 topicFilter: self.topic, qos: MQTTQoS(rawValue: UInt8(self.qos)) ?? .atMostOnce)
-            _ = try await client.subscribe(to: [info])
+            _ = try await state.client?.subscribe(to: [info])
             print("Subscribed to topic: \(self.topic) with QoS: \(self.qos)")
         }
 
         let listenerName = "MQTTInNode-\(self.id)"
-        self.listenerName = listenerName
+        await state.setListenerName(listenerName)
         let listener: (Result<MQTTPublishInfo, Error>) -> Void = { massageResult in
             do {
                 let mqttMessage = try massageResult.get()
@@ -213,38 +240,85 @@ final class MQTTInNode: Codable, Node {
             }
         }
 
-        client.removePublishListener(named: listenerName)
-        client.addPublishListener(named: listenerName, listener)
+        await state.client?.removePublishListener(named: listenerName)
+        await state.client?.addPublishListener(named: listenerName, listener)
     }
 
     func unsubscribe() async throws {
-        guard let client = client, let listenerName = listenerName else {
-            print("MQTT client or listener name is not initialized.")
+        guard let listenerName = await state.listenerName else {
+            print("MQTT listener name is not initialized.")
             return
         }
 
-        if version == .v5_0 {
-            _ = try await client.v5.unsubscribe(from: [self.topic])
+        if await state.version == .v5_0 {
+            _ = try await state.client?.v5.unsubscribe(from: [self.topic])
         } else {
-            _ = try await client.unsubscribe(from: [self.topic])
+            _ = try await state.client?.unsubscribe(from: [self.topic])
         }
 
-        client.removePublishListener(named: listenerName)
+        await state.client?.removePublishListener(named: listenerName)
         print("Unsubscribed from topic: \(self.topic)")
 
-        self.listenerName = nil
+        await state.setListenerName(nil)
     }
 
     func receive(msg: NodeMessage) {}
 
     func send(msg: NodeMessage) {
-        if !isRunning { return }
+        Task {
+            if await !isRunning { return }
 
-        flow?.routeMessage(from: self, message: msg)
+            await state.flow?.routeMessage(from: self, message: msg)
+        }
     }
 }
 
-final class MQTTOutNode: Codable, Node {
+private actor MQTTOutState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var config: MQTTBroker?
+
+    // MQTTNIO client
+    fileprivate var client: MQTTClient?
+    fileprivate var version: MQTTClient.Version = .v3_1_1  // Default to MQTT 3.1.1
+
+    fileprivate var isRunning: Bool = false
+
+    // AsyncStream continuation for event-driven message delivery
+    fileprivate var messageContinuation: AsyncStream<NodeMessage>.Continuation?
+    // AsyncStream for incoming messages as a computed property
+    fileprivate var messageStream: AsyncStream<NodeMessage> {
+        AsyncStream { continuation in
+            self.messageContinuation = continuation
+        }
+    }
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setConfig(_ config: MQTTBroker) {
+        self.config = config
+    }
+
+    fileprivate func setClient(_ client: MQTTClient) {
+        self.client = client
+    }
+
+    fileprivate func setVersion(_ version: MQTTClient.Version) {
+        self.version = version
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func finishMessageStream() {
+        messageContinuation?.finish()
+        messageContinuation = nil
+    }
+}
+
+final class MQTTOutNode: Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
@@ -304,62 +378,57 @@ final class MQTTOutNode: Codable, Node {
             broker, x, y, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var config: MQTTBroker?
+    private let state = MQTTOutState()
 
-    // AsyncStream continuation for event-driven message delivery
-    private var messageContinuation: AsyncStream<NodeMessage>.Continuation?
-    // AsyncStream for incoming messages
-    private lazy var messageStream: AsyncStream<NodeMessage> = AsyncStream { continuation in
-        self.messageContinuation = continuation
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
-
-    // MQTTNIO client
-    private var client: MQTTClient?
-    private var version: MQTTClient.Version = .v3_1_1  // Default to MQTT 3.1.1
 
     deinit {
-        terminate()
     }
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        self.config = flow.getConfig(by: self.broker)
-        isRunning = true
+    func initialize(flow: Flow) async {
+        let config = await flow.getConfig(by: self.broker)  // broker: configuration ID
+        guard let config else {
+            print("No configuration found for broker: \(broker)")
+            return
+        }
+        await state.setConfig(config)
+        await state.setIsRunning(true)
     }
 
     func execute() {
         Task {
-            if !isRunning { return }
+            if await !isRunning { return }
 
-            // Parse broker URL
-            guard let host = self.config?.broker else {
-                print("Invalid broker URL: \(broker)")
-                return
-            }
-            guard let port = self.config?.port else {
-                print("Invalid port for broker: \(broker)")
+            // Retrieve broker configuration
+            guard let config = await state.config else {
+                print("MQTT configuration not found for broker: \(broker)")
                 return
             }
             let identifier = "MQTT_" + self.id
 
             // Configure MQTT client
-            if config?.protocolVersion == "5" {
+            var version: MQTTClient.Version = .v3_1_1  // Default to MQTT 3.1.1
+            if config.protocolVersion == "5" {
                 version = .v5_0
+                await state.setVersion(version)
             }
-            let keepalive = Int64(config?.keepalive ?? "60") ?? 60
+            let keepalive = Int64(config.keepalive) ?? 60
             let clientConfig = MQTTClient.Configuration(
                 version: version,
                 keepAliveInterval: .seconds(keepalive))
 
             // create MQTT client
-            client = MQTTClient(
-                host: host,
-                port: port,
+            let client = MQTTClient(
+                host: config.broker,  // broker: broker host URL
+                port: config.port,
                 identifier: identifier,
                 eventLoopGroupProvider: .shared(.singletonNIOTSEventLoopGroup),
                 configuration: clientConfig)
+            await state.setClient(client)
 
             // Connect to the MQTT broker
             do {
@@ -373,56 +442,49 @@ final class MQTTOutNode: Codable, Node {
             }
 
             // Process messages as they arrive
-            for await msg in messageStream where isRunning {
+            let messageStream = await state.messageStream
+            for await msg in messageStream where await isRunning {
                 await publish(msg: msg)
             }
         }
     }
 
-    func terminate() {
-        isRunning = false
+    func terminate() async {
+        await state.setIsRunning(false)
+        await state.finishMessageStream()
+
         // Disconnect and shutdown
-        Task { [weak self] in
-            guard let self = self else { return }
-            await disconnect()
-            try client?.syncShutdownGracefully()
+        await disconnect()
+        do {
+            try await state.client?.syncShutdownGracefully()
+        } catch {
+            print("Error during termination: \(error)")
         }
     }
 
     func connect() async throws -> Bool {
-        guard let client = client else {
-            print("MQTT client is not initialized.")
-            return false
-        }
-
-        if version == .v5_0 {
-            _ = try await client.v5.connect()
-            return client.isActive()
+        if await state.version == .v5_0 {
+            _ = try await state.client?.v5.connect()
+            return await state.client?.isActive() ?? false
         } else {
-            _ = try await client.connect()
-            return client.isActive()
+            _ = try await state.client?.connect()
+            return await state.client?.isActive() ?? false
         }
     }
 
     func disconnect() async {
-        guard let client = client else {
-            print("MQTT client is not initialized.")
-            return
-        }
-
-        if version == .v5_0 {
-            _ = try? await client.v5.disconnect()
-        } else {
-            _ = try? await client.disconnect()
+        do {
+            if await state.version == .v5_0 {
+                _ = try await state.client?.v5.disconnect()
+            } else {
+                _ = try await state.client?.disconnect()
+            }
+        } catch {
+            print("Error during disconnect: \(error)")
         }
     }
 
     func publish(msg: NodeMessage) async {
-        guard let client = client else {
-            print("MQTT client is not initialized.")
-            return
-        }
-
         let str: String
         if let dict = msg.payload as? [String: Any] {
             str = Util.convertDictToJSON(dict) ?? "\(dict)"
@@ -432,14 +494,14 @@ final class MQTTOutNode: Codable, Node {
         let payload = ByteBufferAllocator().buffer(string: str)
 
         do {
-            if version == .v5_0 {
-                _ = try await client.v5.publish(
+            if await state.version == .v5_0 {
+                _ = try await state.client?.v5.publish(
                     to: self.topic,
                     payload: payload,
                     qos: MQTTQoS(rawValue: UInt8(self.qos)) ?? .atMostOnce)
                 print("Published message to topic: \(self.topic) with QoS: \(self.qos)")
             } else {
-                let _: () = try await client.publish(
+                _ = try await state.client?.publish(
                     to: self.topic,
                     payload: payload,
                     qos: MQTTQoS(rawValue: UInt8(self.qos)) ?? .atMostOnce)
@@ -450,10 +512,10 @@ final class MQTTOutNode: Codable, Node {
         }
     }
 
-    func receive(msg: NodeMessage) {
-        guard isRunning else { return }
+    func receive(msg: NodeMessage) async {
+        guard await isRunning else { return }
         // Deliver message to the AsyncStream
-        messageContinuation?.yield(msg)
+        await state.messageContinuation?.yield(msg)
     }
 
     func send(msg: NodeMessage) {
@@ -461,7 +523,7 @@ final class MQTTOutNode: Codable, Node {
 }
 
 // MQTT Broker configuration class
-final class MQTTBroker: Codable {
+final class MQTTBroker: Codable, Sendable {
     let id: String
     let type: String
     let name: String

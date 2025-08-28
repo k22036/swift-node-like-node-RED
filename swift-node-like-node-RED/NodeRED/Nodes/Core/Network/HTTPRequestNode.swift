@@ -7,7 +7,46 @@
 
 import Foundation
 
-final class HTTPRequestNode: Codable, Node {
+private actor HTTPRequestState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    // AsyncStream continuation for event-driven message delivery
+    fileprivate var messageContinuation: AsyncStream<NodeMessage>.Continuation?
+    // AsyncStream for incoming messages as a computed property
+    fileprivate var messageStream: AsyncStream<NodeMessage> {
+        AsyncStream { continuation in
+            self.messageContinuation = continuation
+        }
+    }
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+
+    fileprivate func finishMessageStream() {
+        messageContinuation?.finish()
+        messageContinuation = nil
+    }
+}
+
+final class HTTPRequestNode: Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String
@@ -61,36 +100,29 @@ final class HTTPRequestNode: Codable, Node {
             authType, senderr, x, y, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
+    private let state = HTTPRequestState()
 
-    // AsyncStream continuation for event-driven message delivery
-    private var messageContinuation: AsyncStream<NodeMessage>.Continuation?
-    // AsyncStream for incoming messages
-    private lazy var messageStream: AsyncStream<NodeMessage> = AsyncStream { continuation in
-        self.messageContinuation = continuation
-    }
-
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
-
-        messageStream = AsyncStream { continuation in
-            messageContinuation = continuation
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
         }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+    }
+
+    func execute() async {
         // Prevent multiple executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("HTTPRequestNode: already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
-            guard isRunning else { return }
+            guard await isRunning else { return }
 
             // Build URL with query string if needed
             let requestURLString = self.url
@@ -100,7 +132,8 @@ final class HTTPRequestNode: Codable, Node {
             }
             let method = self.method.uppercased()
 
-            for await msg in messageStream where isRunning {
+            let messageStream = await state.messageStream
+            for await msg in messageStream where await isRunning {
                 var request = URLRequest(url: requestURL)
                 request.httpMethod = method
                 if paytoqs == "body" {
@@ -116,63 +149,75 @@ final class HTTPRequestNode: Codable, Node {
                     } else if let payloadStr = msg.payload as? String {
                         request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
                         request.httpBody = payloadStr.data(using: .utf8)
+                    } else {
+                        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+                        let payloadStr = "\(msg.payload)"
+                        request.httpBody = payloadStr.data(using: .utf8)
                     }
                 }
                 do {
                     let (data, _) = try await URLSession.shared.data(for: request)
-                    var responsePayload: Any = data
+                    var responsePayload: any Sendable = data
                     switch ret {
                     case "txt":
                         responsePayload = String(data: data, encoding: .utf8) ?? ""
                     case "obj":
-                        responsePayload = (try? JSONSerialization.jsonObject(with: data)) ?? [:]
+                        // JSONオブジェクトの場合
+                        if let jsonObject = try? JSONSerialization.jsonObject(with: data)
+                            as? [String: any Sendable]
+                        {
+                            responsePayload = jsonObject
+                            // JSON配列の場合
+                        } else if let jsonArray = try? JSONSerialization.jsonObject(with: data)
+                            as? [any Sendable]
+                        {
+                            responsePayload = jsonArray
+                            // どちらでもない場合
+                        } else {
+                            let ret: [String: any Sendable] = [:]
+                            responsePayload = ret
+                        }
                     case "bin":
                         responsePayload = data
                     default:
                         break
                     }
                     let outMsg = NodeMessage(payload: responsePayload)
-                    send(msg: outMsg)
+                    await send(msg: outMsg)
                 } catch is CancellationError {
                     // Task was cancelled, exit the loop
                     return
+                } catch let urlError as URLError where urlError.code == .cancelled {
+                    // URLSession task was cancelled (NSURLErrorDomain code=-999), treat like task cancellation
+                    return
                 } catch {
                     print("HTTPRequestNode error: \(error)")
-                    if senderr {
-                        let errMsg = NodeMessage(payload: error.localizedDescription)
-                        send(msg: errMsg)
-                    }
+                    let errMsg = NodeMessage(payload: error.localizedDescription)
+                    await send(msg: errMsg)
                 }
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-
-        if let task = currentTask {
-            _ = await task.value  // Wait for the task to complete
-        }
-        currentTask = nil
-        messageContinuation?.finish()  // Signal the end of the stream
+        await state.setIsRunning(false)
+        await state.finishMessageStream()
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
-        messageContinuation?.finish()
     }
 
-    func receive(msg: NodeMessage) {
-        if !isRunning { return }
+    func receive(msg: NodeMessage) async {
+        if await !isRunning { return }
         // Deliver message to the AsyncStream
-        messageContinuation?.yield(msg)
+        await state.messageContinuation?.yield(msg)
     }
 
-    func send(msg: NodeMessage) {
-        if !isRunning { return }
+    func send(msg: NodeMessage) async {
+        if await !isRunning { return }
 
-        flow?.routeMessage(from: self, message: msg)
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 }

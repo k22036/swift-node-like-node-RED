@@ -162,27 +162,27 @@ struct InjectNodeTests {
             #expect(injectNode.wires.first == ["test-node"])
             Logger.debugLog("✅ パースに成功しました！")
 
-            let flow = try Flow(flowJson: "[]")
-            flow.addNode(injectNode)
-            flow.addNode(testNode)
+            let flow = try await Flow(flowJson: "[]")
+            await flow.addNode(injectNode)
+            await flow.addNode(testNode)
 
-            testNode.initialize(flow: flow)
-            injectNode.initialize(flow: flow)
+            await testNode.initialize(flow: flow)
+            await injectNode.initialize(flow: flow)
 
-            #expect(injectNode.isRunning == true)
+            #expect(await injectNode.isRunning == true)
 
             testNode.execute()
-            injectNode.execute()
+            await injectNode.execute()
 
             try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
 
-            testNode.terminate()
+            await testNode.terminate()
             await injectNode.terminate()
 
-            Logger.debugLog("buffer length: \(testNode.buffer.count)")
-            #expect(testNode.buffer.count > 0)
+            Logger.debugLog("buffer length: \(await testNode.buffer.count)")
+            #expect(await testNode.buffer.count > 0)
 
-            for msg in testNode.buffer {
+            for msg in await testNode.buffer {
                 Logger.debugLog("ペイロード: \(msg.payload)")
                 #expect(msg.payload is Int)
                 #expect(msg.payload as? Int == 1)

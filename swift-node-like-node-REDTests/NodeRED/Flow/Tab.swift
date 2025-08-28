@@ -115,17 +115,17 @@ struct TabTests {
             ]
             """
         do {
-            let flow = try Flow(flowJson: flowJson)
-            print("✅ フローの初期化に成功しました！")
+            let flow = try await Flow(flowJson: flowJson)
+            Logger.debugLog("✅ フローの初期化に成功しました！")
 
-            try #require(flow.getTab(by: "357cfb731aa85c01") != nil)
-            #expect(flow.getTab(by: "357cfb731aa85c01")?.id == "357cfb731aa85c01")
-            #expect(flow.getTab(by: "357cfb731aa85c01")?.type == "tab")
-            #expect(flow.getTab(by: "357cfb731aa85c01")?.label == "フロー 5")
-            #expect(flow.getTab(by: "357cfb731aa85c01")?.disabled == false)
+            try #require(await flow.getTab(by: "357cfb731aa85c01") != nil)
+            #expect(await flow.getTab(by: "357cfb731aa85c01")?.id == "357cfb731aa85c01")
+            #expect(await flow.getTab(by: "357cfb731aa85c01")?.type == "tab")
+            #expect(await flow.getTab(by: "357cfb731aa85c01")?.label == "フロー 5")
+            #expect(await flow.getTab(by: "357cfb731aa85c01")?.disabled == false)
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
@@ -233,13 +233,14 @@ struct TabTests {
                 }
             ]
             """
-        let flow = try Flow(flowJson: flowJson)
-        print("✅ フローの初期化に成功しました！")
+        let flow = try await Flow(flowJson: flowJson)
+        Logger.debugLog("✅ フローの初期化に成功しました！")
 
-        flow.start()
-        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
-        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
-        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
+        await flow.start()
+        #expect(await flow.getTab(by: "357cfb731aa85c01")?.disabled == false)
+        #expect(await flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == true)
+        #expect(await flow.getNode(by: "22927becb75bd1f3")?.isRunning == true)
+        #expect(await flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == true)
         await flow.stop()
     }
 
@@ -346,13 +347,14 @@ struct TabTests {
                 }
             ]
             """
-        let flow = try Flow(flowJson: flowJson)
-        print("✅ フローの初期化に成功しました！")
+        let flow = try await Flow(flowJson: flowJson)
+        Logger.debugLog("✅ フローの初期化に成功しました！")
 
-        flow.start()
-        #expect(flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
-        #expect(flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
-        #expect(flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)
+        await flow.start()
+        #expect(await flow.getTab(by: "357cfb731aa85c01")?.disabled == true)
+        #expect(await flow.getNode(by: "f0bd46d65aaae42b")?.isRunning == false)
+        #expect(await flow.getNode(by: "22927becb75bd1f3")?.isRunning == false)
+        #expect(await flow.getNode(by: "4df62d3e39f09ef1")?.isRunning == false)
         await flow.stop()
     }
 }

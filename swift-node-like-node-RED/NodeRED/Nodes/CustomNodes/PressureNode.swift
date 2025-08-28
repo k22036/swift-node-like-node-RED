@@ -1,9 +1,39 @@
 import AsyncAlgorithms
-import CoreMotion
+@preconcurrency import CoreMotion
 import Foundation
 
+private actor PressureState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+    fileprivate var lastSentTime: Date?
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setLastSentTime(_ time: Date) {
+        self.lastSentTime = time
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
 /// Custom node that retrieves and sends device pressure (barometric) information
-final class PressureNode: NSObject, Codable, Node {
+final class PressureNode: NSObject, Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String
@@ -61,25 +91,28 @@ final class PressureNode: NSObject, Codable, Node {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
-    var altimeter: CMAltimeter = CMAltimeter()
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
-    private var lastSentTime: Date?
+    private let state = PressureState()
+    private let altimeter: CMAltimeter = CMAltimeter()
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+    }
+
+    func execute() async {
         // Prevent multiple concurrent executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("PressureNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
             do {
@@ -87,7 +120,7 @@ final class PressureNode: NSObject, Codable, Node {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     requestPressure()
                 }
                 guard let interval = `repeat`, interval > 0 else {
@@ -95,7 +128,7 @@ final class PressureNode: NSObject, Codable, Node {
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
+                    if await !isRunning { return }
                     requestPressure()
                 }
             } catch is CancellationError {
@@ -103,26 +136,20 @@ final class PressureNode: NSObject, Codable, Node {
                 return
             } catch {
                 print("PressureNode execution error: \(error)")
-                isRunning = false
+                await state.setIsRunning(false)
                 altimeter.stopRelativeAltitudeUpdates()
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
+        await state.setIsRunning(false)
         altimeter.stopRelativeAltitudeUpdates()
-
-        if let task = currentTask {
-            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
-        }
-        currentTask = nil
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
         altimeter.stopRelativeAltitudeUpdates()
     }
 
@@ -130,34 +157,38 @@ final class PressureNode: NSObject, Codable, Node {
         // This node does not process incoming messages
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
     private func requestPressure() {
         guard CMAltimeter.isRelativeAltitudeAvailable() else { return }
         altimeter.startRelativeAltitudeUpdates(to: OperationQueue.main) { [weak self] data, error in
-            guard let self = self, self.isRunning, let data = data else { return }
-            // Debounce to prevent rapid-fire messages
-            if let lastSent = self.lastSentTime, Date().timeIntervalSince(lastSent) < 0.1 {
-                return
+            Task { @Sendable [weak self] in
+                guard let self = self, await self.isRunning, let data = data else { return }
+                // Debounce to prevent rapid-fire messages
+                if let lastSent = await self.state.lastSentTime,
+                    Date().timeIntervalSince(lastSent) < 0.1
+                {
+                    return
+                }
+                // pressure: kPa -> hPa
+                // swift-format-ignore: AlwaysUseLowerCamelCase
+                let pressure_hPa = data.pressure.doubleValue * 10.0
+                let payload: [String: Double] = ["pressure": pressure_hPa]
+                let msg = NodeMessage(payload: payload)
+                await self.send(msg: msg)
+                await self.state.setLastSentTime(Date())
+                self.altimeter.stopRelativeAltitudeUpdates()
             }
-            // pressure: kPa -> hPa
-            // swift-format-ignore: AlwaysUseLowerCamelCase
-            let pressure_hPa = data.pressure.doubleValue * 10.0
-            let payload: [String: Double] = ["pressure": pressure_hPa]
-            let msg = NodeMessage(payload: payload)
-            self.send(msg: msg)
-            self.lastSentTime = Date()
-            self.altimeter.stopRelativeAltitudeUpdates()
         }
     }
 
     /// For testing: simulate a pressure update
     // swift-format-ignore: AlwaysUseLowerCamelCase
-    func simulatePressure(_ pressure_hPa: Double) {
+    func simulatePressure(_ pressure_hPa: Double) async {
         let payload: [String: Double] = ["pressure": pressure_hPa]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 }

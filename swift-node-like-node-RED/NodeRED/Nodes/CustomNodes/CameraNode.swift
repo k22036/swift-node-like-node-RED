@@ -1,11 +1,44 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import AsyncAlgorithms
-import CoreImage
+@preconcurrency import CoreImage
 import Foundation
 import UIKit
 
+private actor CameraState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
+private actor CaptureState: Sendable {
+    fileprivate var shouldCaptureFrame = false  // flag to capture next frame
+
+    fileprivate func setShouldCaptureFrame(_ capture: Bool) {
+        shouldCaptureFrame = capture
+    }
+}
+
 /// Custom node that captures images from the device camera and sends them as base64 strings
-final class CameraNode: NSObject, Codable, Node {
+final class CameraNode: NSObject, Codable, Sendable, Node {
     let id: String
     let type: String
     let z: String
@@ -62,22 +95,25 @@ final class CameraNode: NSObject, Codable, Node {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
+    private let state = CameraState()
+    private let captureState = CaptureState()
+
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
+    }
+
     // Camera capture properties
     private let captureSession = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
-    private var shouldCaptureFrame = false  // flag to capture next frame
     /// Expose capture session for preview
     var session: AVCaptureSession { captureSession }
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
+    private let ciContext = CIContext()
 
-    // Add a shared CIContext to reuse for image conversion
-    private lazy var ciContext = CIContext()
-
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
         setupSession()
     }
 
@@ -101,14 +137,14 @@ final class CameraNode: NSObject, Codable, Node {
         }
     }
 
-    func execute() {
+    func execute() async {
         // Prevent multiple executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("CameraNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
             do {
@@ -116,44 +152,37 @@ final class CameraNode: NSObject, Codable, Node {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
-                    capturePhoto()
+                    if await !isRunning { return }
+                    await capturePhoto()
                 }
                 guard let interval = `repeat`, interval > 0 else {
                     return
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
-                    capturePhoto()
+                    if await !isRunning { return }
+                    await capturePhoto()
                 }
             } catch is CancellationError {
                 return
             } catch {
                 print("CameraNode execution error: \(error)")
             }
-
         }
+        await state.setCurrentTask(currentTask)
     }
 
-    private func capturePhoto() {
-        shouldCaptureFrame = true
+    private func capturePhoto() async {
+        await captureState.setShouldCaptureFrame(true)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
+        await state.setIsRunning(false)
         captureSession.stopRunning()
-
-        if let task = currentTask {
-            _ = await task.value  // Ensure the task is awaited to avoid memory leaks
-        }
-        currentTask = nil
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
         captureSession.stopRunning()
     }
 
@@ -161,47 +190,41 @@ final class CameraNode: NSObject, Codable, Node {
         // No input handling
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 }
 
 extension CameraNode: AVCaptureVideoDataOutputSampleBufferDelegate {
-    func captureOutput(
+    @objc
+    internal func captureOutput(
         _ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        guard isRunning && shouldCaptureFrame else { return }
-        shouldCaptureFrame = false
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-
         var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
 
         // Get current device orientation and rotate the image
-        let orientation = UIDevice.current.orientation
-        let rotation: CGAffineTransform
+        let angle = CGFloat(connection.videoRotationAngle) * .pi / 180
+        let rotation = CGAffineTransform(rotationAngle: angle)
 
-        switch orientation {
-        case .portrait:
-            rotation = CGAffineTransform(rotationAngle: -(.pi / 2))
-        case .portraitUpsideDown:
-            rotation = CGAffineTransform(rotationAngle: .pi / 2)
-        case .landscapeLeft:
-            rotation = CGAffineTransform(rotationAngle: .pi)
-        case .landscapeRight:
-            rotation = CGAffineTransform(rotationAngle: 0)
-        default:
-            // Assume portrait if orientation is unknown
-            rotation = CGAffineTransform(rotationAngle: -(.pi / 2))
-        }
         ciImage = ciImage.transformed(by: rotation)
 
         // Use the shared context instead of creating a new one each time
-        let context = ciContext
-        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
         let uiImage = UIImage(cgImage: cgImage)
         guard let data = uiImage.jpegData(compressionQuality: 0.8) else { return }
-        let msg = NodeMessage(payload: data)
-        send(msg: msg)
+
+        Task.detached { @Sendable [weak self] in
+            guard let self = self else { return }
+
+            let isRunning = await isRunning
+            let shouldCaptureFrame = await captureState.shouldCaptureFrame
+            guard isRunning && shouldCaptureFrame else { return }
+            await captureState.setShouldCaptureFrame(false)
+
+            let msg = NodeMessage(payload: data)
+            await send(msg: msg)
+        }
     }
 }

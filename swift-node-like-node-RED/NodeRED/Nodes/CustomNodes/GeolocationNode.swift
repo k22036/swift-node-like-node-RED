@@ -1,9 +1,120 @@
 import AsyncAlgorithms
-import CoreLocation
+@preconcurrency import CoreLocation
 import Foundation
 
+private actor GeolocationState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
+private actor LocationState: Sendable {
+    private var backgroundSession: CLBackgroundActivitySession?
+    private var keepAliveTask: Task<Void, Never>?
+    fileprivate var monitor: CLMonitor?
+
+    fileprivate var isInsideArea: Bool = false
+    fileprivate var lastSentTime: Date?
+    fileprivate var lastLocation: CLLocation?
+
+    fileprivate func initBackgroundSession() {
+        self.backgroundSession = CLBackgroundActivitySession()
+    }
+
+    fileprivate func finishBackgroundSession() {
+        backgroundSession?.invalidate()
+    }
+
+    fileprivate func setKeepAliveTask(_ task: Task<Void, Never>?) {
+        self.keepAliveTask = task
+    }
+
+    fileprivate func finishKeepAliveTask() async {
+        keepAliveTask?.cancel()
+        await keepAliveTask?.value  // Wait for the task to complete
+        keepAliveTask = nil
+    }
+
+    fileprivate func setMonitor(_ monitor: CLMonitor?) {
+        self.monitor = monitor
+    }
+
+    fileprivate func addMonitorCondition(
+        _ condition: CLMonitor.CircularGeographicCondition, identifier: String
+    ) async {
+        await monitor?.add(condition, identifier: identifier)
+    }
+
+    fileprivate func removeMonitor(identifier: String) async {
+        await monitor?.remove(identifier)
+        monitor = nil
+    }
+
+    fileprivate func setIsInsideArea(_ isInsideArea: Bool) {
+        self.isInsideArea = isInsideArea
+    }
+
+    fileprivate func setLastSendTime(_ lastSendTime: Date) {
+        self.lastSentTime = lastSendTime
+    }
+
+    fileprivate func setLastLocation(_ lastLocation: CLLocation) {
+        self.lastLocation = lastLocation
+    }
+}
+
+private final class LocationManager: Sendable {
+    private let locationManager: CLLocationManager = CLLocationManager()
+
+    @MainActor
+    fileprivate init() {
+        // locationManagerをmainスレッドで初期化するために必要
+    }
+
+    fileprivate func initLocationManager(delegate: CLLocationManagerDelegate) {
+        locationManager.delegate = delegate
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.allowsBackgroundLocationUpdates = true
+    }
+
+    fileprivate func getLocationManager() -> CLLocationManager {
+        return self.locationManager
+    }
+
+    fileprivate func startUpdateLocation() {
+        locationManager.startUpdatingLocation()
+    }
+
+    fileprivate func stopUpdateLocation() {
+        locationManager.stopUpdatingLocation()
+    }
+
+    fileprivate func requestLocation() {
+        locationManager.requestLocation()
+    }
+}
+
 /// Custom node that retrieves and sends device geolocation information
-final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate {
+final class GeolocationNode: NSObject, Codable, Sendable, Node, CLLocationManagerDelegate {
     let id: String
     let type: String
     let z: String
@@ -131,81 +242,80 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
             wires, keepAlive
     }
 
-    var locationManager: CLLocationManager = CLLocationManager()
-    private var backgroundSession: CLBackgroundActivitySession?
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
-    private var keepAliveTask: Task<Void, Never>?
-    private var isInsideArea: Bool = false
-    private var lastSentTime: Date?
-    private var lastLocation: CLLocation?
+    private let state = GeolocationState()
+    private let locationState = LocationState()
+    nonisolated(unsafe) private var locationManager: LocationManager?
 
-    var monitor: CLMonitor?
-    lazy var identifier: String = {
-        "GeolocationArea, centerLat: \(centerLat), centerLon: \(centerLon), radius: \(radius)"
-    }()
-
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
-        locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.allowsBackgroundLocationUpdates = true
-        self.backgroundSession = CLBackgroundActivitySession()
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    private var identifier: String {
+        "GeolocationArea, centerLat: \(centerLat), centerLon: \(centerLon), radius: \(radius)"
+    }
+
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+        self.locationManager = await LocationManager()
+        locationManager?.initLocationManager(delegate: self)
+        await locationState.initBackgroundSession()
+    }
+
+    func execute() async {
         // Prevent multiple concurrent executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("GeolocationNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
             if mode == ModeType.update.rawValue {
-                startUpdateLocation()
+                locationManager?.startUpdateLocation()
                 return
             } else if mode == ModeType.area.rawValue {
-                if monitor == nil {
+                if await locationState.monitor == nil {
                     // Use a unique name for each monitor instance to avoid conflicts
-                    monitor = await CLMonitor("GeolocationArea\(id)")
+                    let monitor = await CLMonitor("GeolocationArea\(id)")
+                    await locationState.setMonitor(monitor)
                 }
                 let condition = CLMonitor.CircularGeographicCondition(
                     center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
                     radius: radius)
-                await monitor?.add(condition, identifier: identifier)
-
-                guard let monitor = monitor else {
-                    print("Failed to initialize geolocation area monitoring.")
-                    return
-                }
+                await locationState.addMonitorCondition(condition, identifier: identifier)
 
                 // keep alive task
                 if let interval = `repeat`, interval > 0, keepAlive != KeepAliveType.none.rawValue {
-                    keepAliveTask?.cancel()
-                    keepAliveTask = Task { [weak self] in
+                    await locationState.finishKeepAliveTask()
+                    let keepAliveTask = Task { [weak self] in
                         guard let self = self else { return }
                         for await _ in AsyncTimerSequence(
                             interval: .seconds(interval), clock: .suspending)
                         {
-                            if !self.isRunning { break }
-                            self.sendKeepAlive()
+                            if await !isRunning { break }
+                            await sendKeepAlive()
                         }
                     }
+                    await locationState.setKeepAliveTask(keepAliveTask)
                 }
 
                 do {
-                    for try await event in await monitor.events {
+                    guard let events = await locationState.monitor?.events else {
+                        print("Geolocation area monitoring not available.")
+                        return
+                    }
+                    for try await event in events {
                         if Task.isCancelled { break }
                         if event.state == .satisfied {
-                            isInsideArea = true
-                            sendEnter()
+                            await locationState.setIsInsideArea(true)
+                            await sendEnter()
                         } else if event.state == .unsatisfied {
-                            isInsideArea = false
-                            sendExit()
+                            await locationState.setIsInsideArea(false)
+                            await sendExit()
                         }
                     }
                 } catch {
@@ -213,11 +323,7 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
                         print("Geolocation area monitoring error: \(error)")
                     }
                 }
-                keepAliveTask?.cancel()
-                if let task = keepAliveTask {
-                    _ = await task.value
-                }
-                keepAliveTask = nil
+                await locationState.finishKeepAliveTask()
                 return
             }
 
@@ -226,91 +332,80 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
-                    requestLocation()
+                    if await !isRunning { return }
+                    locationManager?.requestLocation()
                 }
                 guard let interval = `repeat`, interval > 0 else {
                     return
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
-                    requestLocation()
+                    if await !isRunning { return }
+                    locationManager?.requestLocation()
                 }
             } catch is CancellationError {
                 // Task was cancelled, do nothing
                 return
             } catch {
                 print("GeolocationNode execution error: \(error)")
-                isRunning = false
+                await state.setIsRunning(false)
+                locationManager?.stopUpdateLocation()
+                await locationState.finishBackgroundSession()
             }
 
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-        keepAliveTask?.cancel()
-        locationManager.stopUpdatingLocation()
-        backgroundSession?.invalidate()
-        await monitor?.remove(identifier)
-        monitor = nil
-        if let task = currentTask {
-            _ = await task.value
-        }
-        if let task = keepAliveTask {
-            _ = await task.value
-        }
-        currentTask = nil
+        await state.setIsRunning(false)
+        await locationState.finishBackgroundSession()
+        await locationState.removeMonitor(identifier: identifier)
+        locationManager?.stopUpdateLocation()
+        await locationState.finishKeepAliveTask()
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
-        keepAliveTask?.cancel()
-        keepAliveTask = nil
-        locationManager.stopUpdatingLocation()
-        backgroundSession?.invalidate()
-        monitor = nil
+        locationManager?.stopUpdateLocation()
     }
 
     func receive(msg: NodeMessage) {
         // This node does not process incoming messages
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
-    func sendEnter() {
+    private func sendEnter() async {
         let payload: [String: String] = ["event": "enter"]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 
-    func sendExit() {
+    private func sendExit() async {
         let payload: [String: String] = ["event": "exit"]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 
     // keep alive event sender
-    func sendKeepAlive() {
-        guard isRunning else { return }
+    private func sendKeepAlive() async {
+        guard await isRunning else { return }
 
         // 現在位置を取得し、エリア内判定
-        requestLocation()
-        let location = lastLocation
+        locationManager?.requestLocation()
+        let location = await locationState.lastLocation
         let isInside: Bool
         if let location = location {
             let center = CLLocation(latitude: centerLat, longitude: centerLon)
             let distance = location.distance(from: center)
             isInside = distance <= radius
-            isInsideArea = isInside  // 更新エリア内フラグ
+            await locationState.setIsInsideArea(isInside)
         } else {
             // 位置情報がなければ従来通りフラグで判定
-            isInside = isInsideArea
+            isInside = await locationState.isInsideArea
         }
 
         switch keepAlive {
@@ -318,42 +413,34 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
             if isInside {
                 let payload: [String: String] = ["event": "keepalive_inside"]
                 let msg = NodeMessage(payload: payload)
-                send(msg: msg)
+                await send(msg: msg)
             }
         case KeepAliveType.outside.rawValue:
             if !isInside {
                 let payload: [String: String] = ["event": "keepalive_outside"]
                 let msg = NodeMessage(payload: payload)
-                send(msg: msg)
+                await send(msg: msg)
             }
         default:
             let payload: [String: String] = [
                 "event": isInside ? "keepalive_inside" : "keepalive_outside"
             ]
             let msg = NodeMessage(payload: payload)
-            send(msg: msg)
+            await send(msg: msg)
         }
     }
 
-    private func startUpdateLocation() {
-        locationManager.startUpdatingLocation()
-    }
-
-    private func requestLocation() {
-        locationManager.requestLocation()
-    }
-
     /// For testing: simulate a CLMonitor event for area mode
-    func simulateAreaEvent(state: CLMonitor.Event.State) {
+    func simulateAreaEvent(state: CLMonitor.Event.State) async {
         if state == .satisfied {
-            sendEnter()
+            await sendEnter()
         } else if state == .unsatisfied {
-            sendExit()
+            await sendExit()
         }
     }
 
     /// For testing: simulate a location update
-    func simulateLocation(latitude: Double, longitude: Double) {
+    func simulateLocation(latitude: Double, longitude: Double) async {
         let location = CLLocation(
             coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
             altitude: 0,
@@ -361,32 +448,42 @@ final class GeolocationNode: NSObject, Codable, Node, CLLocationManagerDelegate 
             verticalAccuracy: 5,
             timestamp: Date()
         )
-        self.locationManager(self.locationManager, didUpdateLocations: [location])
+        if let locationManager = locationManager?.getLocationManager() {
+            self.locationManager(locationManager, didUpdateLocations: [location])
+        }
     }
 
     // MARK: - CLLocationManagerDelegate
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRunning, let loc = locations.last else { return }
-        // Debounce to prevent rapid-fire messages
-        if let lastSent = lastSentTime, Date().timeIntervalSince(lastSent) < 0.9 {
-            return
-        }
+    internal func locationManager(
+        _ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]
+    ) {
+        Task.detached { @Sendable [weak self] in
+            guard let self = self else { return }
 
-        if mode == ModeType.area.rawValue {
-            lastLocation = loc
-            lastSentTime = Date()
-            return
-        }
+            guard await isRunning, let loc = locations.last else { return }
+            // Debounce to prevent rapid-fire messages
+            if let lastSent = await locationState.lastSentTime,
+                Date().timeIntervalSince(lastSent) < 0.9
+            {
+                return
+            }
 
-        let payload: [String: Double] = [
-            "latitude": loc.coordinate.latitude,  // 緯度
-            "longitude": loc.coordinate.longitude,  // 経度
-        ]
-        let msg = NodeMessage(payload: payload)
-        send(msg: msg)
-        lastSentTime = Date()
-        lastLocation = loc
+            if mode == ModeType.area.rawValue {
+                await locationState.setLastLocation(loc)
+                await locationState.setLastSendTime(Date())
+                return
+            }
+
+            let payload: [String: Double] = [
+                "latitude": loc.coordinate.latitude,  // 緯度
+                "longitude": loc.coordinate.longitude,  // 経度
+            ]
+            let msg = NodeMessage(payload: payload)
+            await send(msg: msg)
+            await locationState.setLastLocation(loc)
+            await locationState.setLastSendTime(Date())
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

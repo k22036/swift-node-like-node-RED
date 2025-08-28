@@ -2,8 +2,33 @@ import AsyncAlgorithms
 import Foundation
 import UIKit
 
+private actor BrightnessState: NodeState, Sendable {
+    fileprivate weak var flow: Flow?
+    fileprivate var isRunning: Bool = false
+
+    fileprivate var currentTask: Task<Void, Never>?
+
+    fileprivate func setFlow(_ flow: Flow) {
+        self.flow = flow
+    }
+
+    fileprivate func setIsRunning(_ running: Bool) {
+        self.isRunning = running
+    }
+
+    fileprivate func setCurrentTask(_ task: Task<Void, Never>?) {
+        self.currentTask = task
+    }
+
+    fileprivate func finishCurrentTask() async {
+        currentTask?.cancel()
+        await currentTask?.value  // Wait for the task to complete
+        currentTask = nil
+    }
+}
+
 /// Custom node that retrieves and sends device screen brightness information
-final class BrightnessNode: NSObject, Codable, Node {
+final class BrightnessNode: NSObject, Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String
@@ -61,23 +86,27 @@ final class BrightnessNode: NSObject, Codable, Node {
         case id, type, z, name, `repeat`, once, onceDelay, x, y, wires
     }
 
-    weak var flow: Flow?
-    var isRunning: Bool = false
-    private var currentTask: Task<Void, Never>?
+    private let state = BrightnessState()
 
-    func initialize(flow: Flow) {
-        self.flow = flow
-        isRunning = true
+    var isRunning: Bool {
+        get async {
+            await state.isRunning
+        }
     }
 
-    func execute() {
+    func initialize(flow: Flow) async {
+        await state.setFlow(flow)
+        await state.setIsRunning(true)
+    }
+
+    func execute() async {
         // Prevent multiple executions
-        if let task = currentTask, !task.isCancelled {
+        if let task = await state.currentTask, !task.isCancelled {
             print("BrightnessNode: Already running, skipping execution.")
             return
         }
 
-        currentTask = Task { [weak self] in
+        let currentTask = Task { [weak self] in
             guard let self = self else { return }
 
             do {
@@ -85,65 +114,59 @@ final class BrightnessNode: NSObject, Codable, Node {
                     if onceDelay > 0 {
                         try await Task.sleep(nanoseconds: UInt64(onceDelay * 1_000_000_000))
                     }
-                    if !isRunning { return }
-                    requestBrightness()
+                    if await !isRunning { return }
+                    await requestBrightness()
                 }
                 guard let interval = `repeat`, interval > 0 else {
                     return
                 }
                 for await _ in AsyncTimerSequence(interval: .seconds(interval), clock: .suspending)
                 {
-                    if !isRunning { return }
-                    requestBrightness()
+                    if await !isRunning { return }
+                    await requestBrightness()
                 }
             } catch is CancellationError {
                 // Task was cancelled, do nothing
                 return
             } catch {
                 print("BrightnessNode execution error: \(error)")
-                isRunning = false
+                await state.setIsRunning(false)
                 return
             }
         }
+        await state.setCurrentTask(currentTask)
     }
 
     func terminate() async {
-        isRunning = false
-        currentTask?.cancel()
-
-        if let task = currentTask {
-            _ = await task.value
-        }
-        currentTask = nil
+        await state.setIsRunning(false)
+        await state.finishCurrentTask()
     }
 
     deinit {
-        isRunning = false
-        currentTask?.cancel()
     }
 
     func receive(msg: NodeMessage) {
         // This node does not process incoming messages
     }
 
-    func send(msg: NodeMessage) {
-        flow?.routeMessage(from: self, message: msg)
+    func send(msg: NodeMessage) async {
+        await state.flow?.routeMessage(from: self, message: msg)
     }
 
     /// Helper function to send brightness message
-    private func sendBrightnessMessage(brightness: Double) {
+    private func sendBrightnessMessage(brightness: Double) async {
         let payload: [String: Double] = ["brightness": brightness]
         let msg = NodeMessage(payload: payload)
-        send(msg: msg)
+        await send(msg: msg)
     }
 
-    private func requestBrightness() {
+    @MainActor private func requestBrightness() async {
         let brightness = UIScreen.main.brightness
-        sendBrightnessMessage(brightness: brightness)
+        await sendBrightnessMessage(brightness: brightness)
     }
 
     /// For testing: simulate a brightness update
-    func simulateBrightness(_ brightness: Double) {
-        sendBrightnessMessage(brightness: brightness)
+    func simulateBrightness(_ brightness: Double) async {
+        await sendBrightnessMessage(brightness: brightness)
     }
 }

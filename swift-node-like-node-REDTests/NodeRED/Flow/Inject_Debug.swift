@@ -107,20 +107,20 @@ struct Inject_Debug_Tests {
             let debugNode = (try JSONDecoder().decode([DebugNode].self, from: debugJsonData).first)!
 
             #expect(injectNode.wires.first == ["f0bd46d65aaae42b"])
-            print("✅ パースに成功しました！")
+            Logger.debugLog("✅ パースに成功しました！")
 
-            let flow = try Flow(flowJson: "[]")
-            flow.addNode(injectNode)
-            flow.addNode(debugNode)
+            let flow = try await Flow(flowJson: "[]")
+            await flow.addNode(injectNode)
+            await flow.addNode(debugNode)
 
-            debugNode.initialize(flow: flow)
-            injectNode.initialize(flow: flow)
+            await debugNode.initialize(flow: flow)
+            await injectNode.initialize(flow: flow)
 
-            #expect(debugNode.isRunning == true)
-            #expect(injectNode.isRunning == true)
+            #expect(await debugNode.isRunning == true)
+            #expect(await injectNode.isRunning == true)
 
-            debugNode.execute()
-            injectNode.execute()
+            await debugNode.execute()
+            await injectNode.execute()
 
             try await Task.sleep(nanoseconds: UInt64(2 * 1_000_000_000))
 
@@ -128,7 +128,7 @@ struct Inject_Debug_Tests {
             await injectNode.terminate()
         } catch {
             // パースに失敗した場合のエラーハンドリング
-            print("❌ パースに失敗しました: \(error)")
+            Logger.debugLog("❌ パースに失敗しました: \(error)")
             throw error
         }
     }
