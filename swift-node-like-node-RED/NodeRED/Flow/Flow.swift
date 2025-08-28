@@ -201,13 +201,6 @@ final class Flow: Sendable {
         return true
     }
 
-    /// Applies the given action to all nodes regardless of availability.
-    private func forEachNode(_ action: (Node) -> Void) async {
-        for node in await state.getNodes() {
-            action(node)
-        }
-    }
-
     func initialize() async {
         await forEachAvailableNode { await $0.initialize(flow: self) }
     }
