@@ -46,7 +46,7 @@ private actor HTTPRequestState: NodeState, Sendable {
     }
 }
 
-final class HTTPRequestNode: Codable, Node {
+final class HTTPRequestNode: Codable, Node, Sendable {
     let id: String
     let type: String
     let z: String
