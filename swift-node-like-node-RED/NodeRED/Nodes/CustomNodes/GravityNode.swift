@@ -145,7 +145,7 @@ final class GravityNode: NSObject, Codable, Node, Sendable {
     }
 
     func terminate() async {
-        await state.setIsRunning(true)
+        await state.setIsRunning(false)
         motionManager.stopDeviceMotionUpdates()
         await state.finishCurrentTask()
     }
