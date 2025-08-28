@@ -99,7 +99,7 @@ struct GeolocationNodeTests {
 
         await node.terminate()
 
-        print("buffer count:", await testNode.buffer.count)
+        Logger.debugLog("buffer count: \(await testNode.buffer.count)")
         #expect(await testNode.buffer.count == 2)
         for msg in await testNode.buffer {
             guard let payload = msg.payload as? [String: Double] else {
@@ -155,7 +155,7 @@ struct GeolocationNodeTests {
 
         await node.terminate()
 
-        print("buffer count:", await testNode.buffer.count)
+        Logger.debugLog("buffer count:  \(await testNode.buffer.count)")
         #expect(await testNode.buffer.count == 1)
         if let msg = await testNode.buffer.first {
             guard let payload = msg.payload as? [String: Double] else {
